@@ -868,7 +868,7 @@ function getScores(cat, group) {
 }
 
 function sameRecord(a, b) {
-    return a.wins === b.wins && (a.pf - a.pa) === (b.pf - b.pa);
+    return a.wins === b.wins && a.losses === b.losses;
 }
 
 function renderStandings(cat, gName) {
@@ -925,7 +925,7 @@ function renderStandings(cat, gName) {
     if (hasTie) {
         const minTied = Math.min(...tiedIndices);
         const slotsForTied = nQualify - minTied;
-        html += `<div class="tie-warn">⚠ 平手！勝場與淨分相同，請從平手選手中勾選 ${slotsForTied} 人晉級</div>`;
+        html += `<div class="tie-warn">⚠ 平手！勝負場數相同，請從平手選手中勾選 ${slotsForTied} 人晉級</div>`;
     }
 
     html += `<table class="standings-table"><thead><tr>`;
