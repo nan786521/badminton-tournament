@@ -1,0 +1,2113 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>羽球賽務系統 v19.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #f5f5f5; --bg-card: #fff; --text: #333; --text-secondary: #555;
+            --text-muted: #666; --text-hint: #888; --text-placeholder: #999;
+            --border: #e0e0e0; --border-light: #f0f0f0; --border-input: #ddd; --border-dotted: #eee;
+            --hover-bg: #f0f6ff; --selected-bg: #e3f0ff;
+            --cat-header-bg: linear-gradient(90deg, #e8f0fe, #fff);
+            --table-header-bg: #f8f9fa; --table-border: #dee2e6;
+            --qualified-bg: #e6f4ea; --qualified-text: #137333;
+            --btn-light-bg: #e8eaed; --btn-light-text: #333;
+            --input-bg: #fff; --score-input-bg: #fff;
+        }
+        [data-theme="dark"] {
+            --bg: #1a1a2e; --bg-card: #16213e; --text: #e0e0e0; --text-secondary: #b0b0b0;
+            --text-muted: #999; --text-hint: #777; --text-placeholder: #666;
+            --border: #2a2a4a; --border-light: #252545; --border-input: #3a3a5a; --border-dotted: #2a2a4a;
+            --hover-bg: #1e2a4a; --selected-bg: #1a2d5a;
+            --cat-header-bg: linear-gradient(90deg, #1a2d5a, #16213e);
+            --table-header-bg: #1a2d5a; --table-border: #3a3a5a;
+            --qualified-bg: #1a3a2a; --qualified-text: #4caf50;
+            --btn-light-bg: #2a2a4a; --btn-light-text: #ccc;
+            --input-bg: #1e1e3e; --score-input-bg: #1e1e3e;
+        }
+        body { font-family: "Microsoft JhengHei", "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
+
+        /* Header */
+        .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .header h1 { font-size: 22px; font-weight: 700; }
+        .header span { font-size: 13px; opacity: 0.8; }
+
+        /* Theme toggle */
+        .theme-toggle { margin-left: auto; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); color: #fff; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+        .theme-toggle:hover { background: rgba(255,255,255,0.25); }
+        .theme-toggle .icon { font-size: 16px; }
+
+        /* Tabs */
+        .tabs { display: flex; background: var(--bg-card); border-bottom: 2px solid var(--border); }
+        .tab-btn { flex: 1; padding: 14px; text-align: center; cursor: pointer; font-size: 15px; font-weight: 600; border: none; background: none; color: var(--text-muted); transition: all 0.2s; position: relative; }
+        .tab-btn:hover { color: #1a73e8; background: var(--hover-bg); }
+        .tab-btn.active { color: #1a73e8; }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: #1a73e8; }
+        .tab-content { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .tab-content.active { display: block; }
+
+        /* Cards */
+        .card { background: var(--bg-card); border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .card h3 { font-size: 16px; margin-bottom: 12px; color: #1a73e8; }
+
+        /* Form elements */
+        label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 4px; color: var(--text-secondary); }
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-input); border-radius: 6px;
+            font-size: 14px; font-family: inherit; transition: border-color 0.2s;
+            background: var(--input-bg); color: var(--text);
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.1); }
+        textarea { resize: vertical; min-height: 120px; }
+
+        /* Buttons */
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .btn:active { transform: translateY(0); }
+        .btn-primary { background: #1a73e8; color: #fff; }
+        .btn-success { background: #34a853; color: #fff; }
+        .btn-warning { background: #f9ab00; color: #333; }
+        .btn-danger { background: #ea4335; color: #fff; }
+        .btn-light { background: var(--btn-light-bg); color: var(--btn-light-text); }
+        .btn-lg { padding: 14px 28px; font-size: 16px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Radio */
+        .radio-group { display: flex; gap: 16px; margin: 8px 0; }
+        .radio-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 400; }
+
+        /* Setup layout */
+        .setup-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .setup-layout { grid-template-columns: 1fr; } }
+
+        /* Pool list */
+        .pool-list { list-style: none; max-height: 300px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 6px; }
+        .pool-item { padding: 12px 16px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.15s; }
+        .pool-item:hover { background: var(--hover-bg); }
+        .pool-item.selected { background: var(--selected-bg); border-left: 3px solid #1a73e8; }
+        .pool-item .info { font-weight: 600; }
+        .pool-item .count { color: var(--text-hint); font-size: 13px; }
+
+        /* Scoring */
+        .category-header { background: var(--cat-header-bg); padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #1a73e8; }
+        .category-header h3 { color: #1a73e8; margin: 0; }
+        .group-card { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .group-card h4 { font-size: 15px; color: var(--text); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-dotted); }
+        .match-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dotted var(--border-dotted); flex-wrap: wrap; }
+        .match-row:last-child { border-bottom: none; }
+        .match-no { background: #ea4335; color: #fff; font-size: 12px; font-weight: 700; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .player-name { font-weight: 600; min-width: 100px; text-align: right; font-size: 14px; }
+        .player-name.right { text-align: left; }
+        .score-input { width: 70px !important; text-align: center; font-weight: 700; font-size: 16px; padding: 6px 4px; background: var(--score-input-bg); color: var(--text); }
+        .vs-label { font-weight: 700; color: var(--text-placeholder); font-size: 13px; }
+        .ff-badge { display: inline-block; font-size: 15px; font-weight: 700; min-width: 26px; height: 22px; line-height: 22px; text-align: center; border-radius: 3px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 3px; padding: 0 3px; }
+        .ff-badge[data-ff=""] { color: var(--text-placeholder); opacity: 0.5; border: 1px dashed var(--border-input); }
+        .ff-badge[data-ff="injury"] { background: #fff3e0; color: #e67e00; border: 1px solid #e67e00; opacity: 1; }
+        .ff-badge[data-ff="voluntary"] { background: #fde8e8; color: #ea4335; border: 1px solid #ea4335; opacity: 1; }
+        .match-row.has-forfeit .player-name.forfeited-injury { color: #e67e00; }
+        .match-row.has-forfeit .player-name.forfeited-voluntary { text-decoration: line-through; color: var(--text-placeholder); }
+        .match-row.has-forfeit .score-input.forfeited-voluntary { opacity: 0.4; }
+
+        /* Control bar */
+        .control-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px; background: var(--bg-card); border-radius: 10px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); align-items: center; }
+        .control-bar .title { font-weight: 700; font-size: 16px; margin-right: auto; }
+
+        /* Finals */
+        .finals-list { list-style: none; border: 1.5px solid var(--border); border-radius: 6px; max-height: 400px; overflow-y: auto; }
+        .finals-item { padding: 14px 16px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 10px; font-size: 16px; }
+        .finals-item .rank { background: #f9ab00; color: #fff; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+
+        /* Bracket (single elimination) */
+        .bracket { overflow-x: auto; padding: 20px 0; }
+        .bracket-round { display: inline-flex; flex-direction: column; justify-content: center; gap: 20px; vertical-align: top; margin-right: 40px; min-width: 220px; }
+        .bracket-round h4 { text-align: center; color: var(--text-hint); margin-bottom: 8px; font-size: 13px; }
+        .bracket-match { background: var(--bg-card); border: 1.5px solid var(--border-input); border-radius: 8px; overflow: hidden; }
+        .bracket-slot { padding: 8px 12px; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; }
+        .bracket-slot:first-child { border-bottom: 1px solid var(--border-dotted); }
+        .bracket-slot.winner { background: var(--qualified-bg); color: var(--qualified-text); }
+        .bracket-slot .seed { color: var(--text-placeholder); font-size: 11px; }
+
+        /* Toast */
+        .toast { position: fixed; top: 20px; right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 1000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background: #34a853; }
+        .toast.error { background: #ea4335; }
+        .toast.info { background: #1a73e8; }
+
+        /* File input */
+        .file-input-wrapper { position: relative; }
+        .file-input-wrapper input[type="file"] { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+        /* Standings table */
+        .standings-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        .standings-table th { background: var(--table-header-bg); padding: 8px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--table-border); color: var(--text); }
+        .standings-table td { padding: 8px; border-bottom: 1px solid var(--border-dotted); color: var(--text); }
+        .standings-table tr.qualified { background: var(--qualified-bg); }
+        .standings-table tr.qualified td:first-child::before { content: ''; margin-right: 4px; }
+        .standings-table tr.tied { background: #fff8e1; }
+        [data-theme="dark"] .standings-table tr.tied { background: #3a3520; }
+        .tie-warn { color: #e67e00; font-weight: 600; font-size: 13px; margin: 8px 0; }
+        .tie-check { width: 16px; height: 16px; cursor: pointer; accent-color: #1a73e8; }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-placeholder); }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { font-size: 15px; }
+
+        /* Action bar */
+        .action-bar { display: flex; gap: 8px; margin-top: 12px; }
+        .btn-group { display: flex; gap: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>羽球賽務系統</h1>
+    <span>v19.0 Web Edition</span>
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <span class="icon" id="themeIcon">&#9790;</span>
+        <span id="themeLabel">Dark</span>
+    </button>
+</div>
+
+<div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('setup')">1. 名單設定</button>
+    <button class="tab-btn" onclick="switchTab('scoring')">2. 預賽計分</button>
+    <button class="tab-btn" onclick="switchTab('finals')">3. 決賽</button>
+</div>
+
+<!-- Tab 1: Setup -->
+<div id="tab-setup" class="tab-content active">
+    <div class="setup-layout">
+        <div>
+            <div class="card">
+                <h3>步驟一：匯入或手動輸入名單</h3>
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <div class="file-input-wrapper" style="flex: 1;">
+                        <button class="btn btn-warning" style="width:100%; position:relative;">
+                            Excel 批次匯入
+                            <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="importExcel(event)">
+                        </button>
+                    </div>
+                    <button class="btn btn-light" onclick="downloadTemplate()">下載範本</button>
+                </div>
+                <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
+                <div style="margin-bottom: 12px;">
+                    <label>類別名稱（例：3男單）</label>
+                    <input type="text" id="catName" placeholder="輸入類別名稱">
+                </div>
+                <div class="radio-group">
+                    <label><input type="radio" name="matchType" value="單打" checked> 單打</label>
+                    <label><input type="radio" name="matchType" value="雙打"> 雙打</label>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label>名單（每行一位，格式：學校 姓名）</label>
+                    <textarea id="playerList" placeholder="範例：&#10;北一女 王小明&#10;建中 李小華&#10;師大附中 陳小美"></textarea>
+                </div>
+                <button class="btn btn-primary" style="width:100%;" onclick="addToPool()">加入 / 儲存修改</button>
+            </div>
+        </div>
+        <div>
+            <div class="card">
+                <h3>步驟二：確認暫存池</h3>
+                <ul class="pool-list" id="poolList">
+                    <li class="empty-state" id="poolEmpty">
+                        <div class="icon">&#127992;</div>
+                        <p>尚無任何名單，請從左側新增</p>
+                    </li>
+                </ul>
+                <div class="action-bar" id="poolActions" style="display:none;">
+                    <button class="btn btn-light" onclick="loadPoolItem()">載入編輯</button>
+                    <button class="btn btn-danger" onclick="deletePoolItem()">刪除選取</button>
+                    <button class="btn btn-danger" onclick="clearAllPool()" style="margin-left:auto;">全部清空</button>
+                </div>
+            </div>
+            <button class="btn btn-success btn-lg" style="width:100%; margin-top: 8px;" onclick="startTournament()">
+                智慧分組（自動處理 5 人三角 + 直線）
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Tab 2: Scoring -->
+<div id="tab-scoring" class="tab-content">
+    <div class="control-bar">
+        <span class="title">預賽控制台</span>
+        <span id="saveIndicator" style="font-size:12px;color:var(--text-hint);"></span>
+        <button class="btn btn-success" onclick="saveToExcel()">存檔</button>
+        <div class="file-input-wrapper">
+            <button class="btn btn-light" style="position:relative;">載入存檔
+                <input type="file" accept=".xlsx,.xls" onchange="loadFromExcel(event)">
+            </button>
+        </div>
+        <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
+        <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
+        <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
+    </div>
+    <div id="scoringArea">
+        <div class="empty-state">
+            <div class="icon">&#127941;</div>
+            <p>尚未開始賽事，請先至「名單設定」完成分組</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tab 3: Finals -->
+<div id="tab-finals" class="tab-content">
+    <div class="card">
+        <h3>決賽單淘汰管理區</h3>
+        <div style="margin-bottom: 12px;">
+            <label>決賽標題</label>
+            <input type="text" id="finalTitle" placeholder="輸入決賽標題">
+        </div>
+        <label>晉級名單</label>
+        <ul class="finals-list" id="finalsList">
+            <li class="empty-state" id="finalsEmpty">
+                <div class="icon">&#127942;</div>
+                <p>尚無晉級者，請先在預賽計分中結算冠軍</p>
+            </li>
+        </ul>
+        <div class="action-bar" style="margin-top: 12px;">
+            <button class="btn btn-light" onclick="shuffleFinals()">手動抽籤</button>
+            <button class="btn btn-primary" onclick="generateFinalsScoreTable()">產生對戰表</button>
+            <button class="btn btn-success" onclick="generateBracket()">產生對戰圖</button>
+            <button class="btn btn-danger" onclick="printFinalsBracketPDF()">列印對戰圖</button>
+            <button class="btn btn-warning" onclick="exportFinalsExcel()">下載決賽 Excel</button>
+        </div>
+    </div>
+    <div id="finalsScoreArea"></div>
+    <div id="bracketArea"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// Theme
+// ============================================================
+(function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+})();
+
+function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+        html.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+    } else {
+        html.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+    }
+    updateThemeUI();
+}
+
+function updateThemeUI() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.getElementById('themeIcon').innerHTML = isDark ? '&#9788;' : '&#9790;';
+    document.getElementById('themeLabel').textContent = isDark ? 'Light' : 'Dark';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateThemeUI();
+    loadState();
+});
+
+// ============================================================
+// State
+// ============================================================
+const state = {
+    setupPool: {},          // { catName: { type, players[] } }
+    activeGroups: {},       // { catName: [ { name, members[], matches[] } ] }
+    finalQualifiers: [],    // [ { label, name } ]
+    manualQualify: {},      // { "cat_gName": [idx, ...] } — manual tie-break selections
+    selectedPoolItem: null,
+    editingKey: null
+};
+
+// ============================================================
+// Persistence (localStorage)
+// ============================================================
+function saveState() {
+    // Collect all score inputs + forfeit states
+    const scores = {};
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(g => {
+            g.matches.forEach(m => {
+                const s1 = document.getElementById('s1_' + m.matchId);
+                const s2 = document.getElementById('s2_' + m.matchId);
+                const f1 = getFF(m.matchId, 1);
+                const f2 = getFF(m.matchId, 2);
+                if ((s1 && s2 && (s1.value || s2.value)) || f1 || f2) {
+                    scores[m.matchId] = [s1 ? s1.value : '', s2 ? s2.value : '', f1, f2];
+                }
+            });
+        });
+    }
+    try {
+        localStorage.setItem('badminton_state', JSON.stringify({
+            setupPool: state.setupPool,
+            activeGroups: state.activeGroups,
+            finalQualifiers: state.finalQualifiers,
+            manualQualify: state.manualQualify || {},
+            scores: scores
+        }));
+        // Show save indicator
+        const ind = document.getElementById('saveIndicator');
+        if (ind) {
+            ind.textContent = '已自動儲存 ' + new Date().toLocaleTimeString();
+            ind.style.color = 'var(--qualified-text)';
+            clearTimeout(ind._timer);
+            ind._timer = setTimeout(() => { ind.style.color = 'var(--text-hint)'; }, 2000);
+        }
+    } catch (e) {
+        showToast('儲存失敗：' + e.message, 'error');
+    }
+}
+
+function loadState() {
+    const raw = localStorage.getItem('badminton_state');
+    if (!raw) return;
+    try {
+        const saved = JSON.parse(raw);
+        if (saved.setupPool) state.setupPool = saved.setupPool;
+        if (saved.activeGroups) state.activeGroups = saved.activeGroups;
+        if (saved.finalQualifiers) state.finalQualifiers = saved.finalQualifiers;
+        if (saved.manualQualify) state.manualQualify = saved.manualQualify;
+
+        // Rebuild UI
+        refreshPoolList();
+        if (Object.keys(state.activeGroups).length > 0) {
+            rebuildScoringUI(saved.scores || {});
+        }
+        if (state.finalQualifiers.length > 0) {
+            renderFinalsList();
+        }
+    } catch (e) {
+        console.warn('Failed to load saved state:', e);
+    }
+}
+
+function rebuildScoringUI(savedScores) {
+    const area = document.getElementById('scoringArea');
+    area.innerHTML = '';
+
+    for (const cat in state.activeGroups) {
+        const groups = state.activeGroups[cat];
+        const totalPlayers = groups.reduce((s, g) => s + g.members.length, 0);
+
+        const catDiv = document.createElement('div');
+        catDiv.innerHTML = `<div class="category-header"><h3>${cat}（共 ${totalPlayers} 人）</h3></div>`;
+        area.appendChild(catDiv);
+
+        groups.forEach(group => {
+            const aw = getAlignWidths(group.members);
+            const groupCard = document.createElement('div');
+            groupCard.className = 'group-card';
+            groupCard.innerHTML = `<h4>${group.name} 組（${group.members.length} 人：${group.members.join('、')}）</h4>`;
+
+            group.matches.forEach(m => {
+                const row = document.createElement('div');
+                row.className = 'match-row';
+                const saved = savedScores[m.matchId] || ['', '', '', ''];
+                const s1Val = saved[0] || '';
+                const s2Val = saved[1] || '';
+                const ff1Val = saved[2] || '';
+                const ff2Val = saved[3] || '';
+                const ffLabel = { '': '棄', injury: '傷', voluntary: '棄' };
+                row.innerHTML = `
+                    <span class="match-no">${m.matchNo}</span>
+                    <span class="player-name" id="pn1_${m.matchId}">${alignName(group.members[m.p1], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${m.matchId}" data-ff="${ff1Val}" onclick="cycleForfeit('${m.matchId}',1)" title="點擊切換：傷/棄">${ffLabel[ff1Val] || '棄'}</span></span>
+                    <input type="number" class="score-input" id="s1_${m.matchId}" min="0" placeholder="-" value="${s1Val}">
+                    <span class="vs-label">VS</span>
+                    <input type="number" class="score-input" id="s2_${m.matchId}" min="0" placeholder="-" value="${s2Val}">
+                    <span class="player-name right" id="pn2_${m.matchId}"><span class="ff-badge" id="ff2_${m.matchId}" data-ff="${ff2Val}" onclick="cycleForfeit('${m.matchId}',2)" title="點擊切換：傷/棄">${ffLabel[ff2Val] || '棄'}</span>${alignName(group.members[m.p2], aw.sw, aw.nw)}</span>
+                `;
+                groupCard.appendChild(row);
+                if (ff1Val || ff2Val) setTimeout(() => onForfeit(m.matchId, true), 0);
+            });
+
+            const standingsDiv = document.createElement('div');
+            standingsDiv.id = `standings_${cat}_${group.name}`;
+            standingsDiv.style.marginTop = '10px';
+            groupCard.appendChild(standingsDiv);
+
+            const btnCalc = document.createElement('button');
+            btnCalc.className = 'btn btn-light';
+            btnCalc.style.marginTop = '8px';
+            btnCalc.textContent = '計算戰績';
+            btnCalc.onclick = () => renderStandings(cat, group.name);
+            groupCard.appendChild(btnCalc);
+
+            area.appendChild(groupCard);
+        });
+    }
+}
+
+// Get forfeit value from badge
+function getFF(matchId, side) {
+    const el = document.getElementById('ff' + side + '_' + matchId);
+    return el ? (el.getAttribute('data-ff') || '') : '';
+}
+
+// Set forfeit value on badge
+function setFF(matchId, side, val) {
+    const el = document.getElementById('ff' + side + '_' + matchId);
+    if (!el) return;
+    el.setAttribute('data-ff', val);
+    const labels = { '': '棄', injury: '傷', voluntary: '棄' };
+    el.textContent = labels[val] || '棄';
+}
+
+// Click to cycle: '' → injury → voluntary → ''
+function cycleForfeit(matchId, side) {
+    const cur = getFF(matchId, side);
+    const next = cur === '' ? 'injury' : (cur === 'injury' ? 'voluntary' : '');
+    setFF(matchId, side, next);
+    onForfeit(matchId, false);
+}
+
+function onForfeit(matchId, silent) {
+    const ff1El = document.getElementById('ff1_' + matchId);
+    const ff2El = document.getElementById('ff2_' + matchId);
+    const s1 = document.getElementById('s1_' + matchId);
+    const s2 = document.getElementById('s2_' + matchId);
+    const pn1 = document.getElementById('pn1_' + matchId);
+    const pn2 = document.getElementById('pn2_' + matchId);
+    const row = ff1El ? ff1El.closest('.match-row') : null;
+    if (!ff1El || !ff2El || !row) return;
+
+    const f1 = ff1El.getAttribute('data-ff') || '';
+    const f2 = ff2El.getAttribute('data-ff') || '';
+    row.classList.toggle('has-forfeit', !!(f1 || f2));
+
+    // Style player names
+    if (pn1) { pn1.classList.remove('forfeited-injury', 'forfeited-voluntary'); if (f1) pn1.classList.add('forfeited-' + f1); }
+    if (pn2) { pn2.classList.remove('forfeited-injury', 'forfeited-voluntary'); if (f2) pn2.classList.add('forfeited-' + f2); }
+
+    // Style score inputs: voluntary = disabled look
+    if (s1) { s1.classList.remove('forfeited-voluntary'); if (f1 === 'voluntary') s1.classList.add('forfeited-voluntary'); }
+    if (s2) { s2.classList.remove('forfeited-voluntary'); if (f2 === 'voluntary') s2.classList.add('forfeited-voluntary'); }
+
+    // Cascade: voluntary forfeit → auto-forfeit subsequent matches
+    if (!silent && (f1 === 'voluntary' || f2 === 'voluntary')) {
+        cascadeVoluntaryForfeit(matchId, f1 === 'voluntary' ? 1 : 0, f2 === 'voluntary' ? 2 : 0);
+    }
+
+    if (!silent) saveState();
+}
+
+function cascadeVoluntaryForfeit(matchId, side1, side2) {
+    for (const cat in state.activeGroups) {
+        for (const group of state.activeGroups[cat]) {
+            const mi = group.matches.findIndex(m => m.matchId === matchId);
+            if (mi === -1) continue;
+            const triggerMatch = group.matches[mi];
+            const forfeitPlayers = new Set();
+            if (side1) forfeitPlayers.add(triggerMatch.p1);
+            if (side2) forfeitPlayers.add(triggerMatch.p2);
+            if (forfeitPlayers.size === 0) return;
+
+            for (let k = mi + 1; k < group.matches.length; k++) {
+                const m = group.matches[k];
+                if (forfeitPlayers.has(m.p1) && !getFF(m.matchId, 1)) {
+                    setFF(m.matchId, 1, 'voluntary');
+                    onForfeit(m.matchId, true);
+                }
+                if (forfeitPlayers.has(m.p2) && !getFF(m.matchId, 2)) {
+                    setFF(m.matchId, 2, 'voluntary');
+                    onForfeit(m.matchId, true);
+                }
+            }
+            return;
+        }
+    }
+}
+
+// Auto-save scores on input/change (event delegation)
+document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('score-input')) saveState();
+});
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('score-input')) saveState();
+});
+// Safety net: save before page unload
+window.addEventListener('beforeunload', function() {
+    if (Object.keys(state.activeGroups).length > 0) saveState();
+});
+
+// ============================================================
+// Tab switching
+// ============================================================
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', b.textContent.includes(tab === 'setup' ? '名單' : tab === 'scoring' ? '預賽' : '決賽'));
+    });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ============================================================
+// Toast
+// ============================================================
+function showToast(msg, type = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.className = 'toast', 2500);
+}
+
+// ============================================================
+// Tab 1: Setup
+// ============================================================
+function addToPool() {
+    const cat = document.getElementById('catName').value.trim();
+    const text = document.getElementById('playerList').value.trim();
+    if (!cat || !text) { showToast('請填寫類別名稱和名單', 'error'); return; }
+    const players = text.split('\n').map(l => l.trim()).filter(l => l);
+    if (players.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
+    const type = document.querySelector('input[name="matchType"]:checked').value;
+
+    if (state.editingKey && state.editingKey !== cat) {
+        delete state.setupPool[state.editingKey];
+    }
+    state.setupPool[cat] = { type, players };
+    state.editingKey = null;
+    document.getElementById('catName').value = '';
+    document.getElementById('playerList').value = '';
+    refreshPoolList();
+    saveState();
+    showToast(`已儲存「${cat}」`, 'success');
+}
+
+function refreshPoolList() {
+    const list = document.getElementById('poolList');
+    const actions = document.getElementById('poolActions');
+    const keys = Object.keys(state.setupPool);
+
+    // Clear all items except poolEmpty
+    Array.from(list.querySelectorAll('.pool-item')).forEach(el => el.remove());
+
+    // Ensure poolEmpty element exists
+    let empty = document.getElementById('poolEmpty');
+    if (!empty) {
+        empty = document.createElement('li');
+        empty.id = 'poolEmpty';
+        empty.className = 'empty-state';
+        empty.innerHTML = '<div class="icon">&#127992;</div><p>尚無任何名單，請從左側新增</p>';
+        list.appendChild(empty);
+    }
+
+    if (keys.length === 0) {
+        empty.style.display = '';
+        actions.style.display = 'none';
+        return;
+    }
+    empty.style.display = 'none';
+    keys.forEach(cat => {
+        const data = state.setupPool[cat];
+        const li = document.createElement('li');
+        li.className = 'pool-item' + (state.selectedPoolItem === cat ? ' selected' : '');
+        li.innerHTML = `<span class="info">${cat}</span><span class="count">${data.type} / ${data.players.length} 人</span>`;
+        li.onclick = () => { state.selectedPoolItem = cat; refreshPoolList(); };
+        list.appendChild(li);
+    });
+    actions.style.display = 'flex';
+}
+
+function loadPoolItem() {
+    if (!state.selectedPoolItem || !state.setupPool[state.selectedPoolItem]) { showToast('請先選取項目', 'error'); return; }
+    const cat = state.selectedPoolItem;
+    const data = state.setupPool[cat];
+    state.editingKey = cat;
+    document.getElementById('catName').value = cat;
+    document.getElementById('playerList').value = data.players.join('\n');
+    document.querySelector(`input[name="matchType"][value="${data.type}"]`).checked = true;
+    showToast(`正在編輯「${cat}」`, 'info');
+}
+
+function deletePoolItem() {
+    if (!state.selectedPoolItem) return;
+    delete state.setupPool[state.selectedPoolItem];
+    state.selectedPoolItem = null;
+    refreshPoolList();
+    saveState();
+    showToast('已刪除', 'success');
+}
+
+function clearAllPool() {
+    if (!confirm('確定要清空所有名單？')) return;
+    state.setupPool = {};
+    state.selectedPoolItem = null;
+    state.editingKey = null;
+    refreshPoolList();
+    saveState();
+    showToast('已清空所有名單', 'success');
+}
+
+// Excel import
+function importExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            wb.SheetNames.forEach(sheet => {
+                const data = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1 });
+                const players = [];
+                const headerKeywords = ['學校', '姓名', '選手', '名字', '名單', 'name', 'school'];
+                data.forEach((row, ri) => {
+                    const cells = row.filter(c => c != null && String(c).trim() !== '');
+                    if (cells.length === 0) return;
+                    const line = cells.join(' ');
+                    // Skip header row
+                    if (ri === 0 && headerKeywords.some(k => line.includes(k))) return;
+                    players.push(line);
+                });
+                if (players.length === 0) return;
+                const mType = sheet.includes('雙') ? '雙打' : '單打';
+                state.setupPool[sheet] = { type: mType, players };
+            });
+            refreshPoolList();
+            saveState();
+            showToast('Excel 匯入成功', 'success');
+        } catch (err) {
+            showToast('匯入失敗: ' + err.message, 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+}
+
+// ============================================================
+// Tab 2: Smart grouping + scoring
+// ============================================================
+function startTournament() {
+    const keys = Object.keys(state.setupPool);
+    if (keys.length === 0) { showToast('暫存池為空', 'error'); return; }
+
+    state.activeGroups = {};
+    const report = [];
+    const area = document.getElementById('scoringArea');
+    area.innerHTML = '';
+
+    keys.forEach(cat => {
+        const data = state.setupPool[cat];
+        // Deduplicate players
+        const players = [...new Set(data.players.map(p => p.trim()))].filter(p => p);
+        shuffle(players);
+        const n = players.length;
+        const groups = [];
+
+        if (n < 3) {
+            report.push(`【${cat}】共 ${n} 人 → 單組`);
+            groups.push(players);
+        } else if (n === 3) {
+            report.push(`【${cat}】共 3 人 → 3人組: 1`);
+            groups.push(players);
+        } else if (n === 4) {
+            report.push(`【${cat}】共 4 人 → 4人組: 1`);
+            groups.push(players);
+        } else if (n === 5) {
+            report.push(`【${cat}】共 5 人 → 3人組 + 2人組`);
+            groups.push(players.slice(0, 3));
+            groups.push(players.slice(3));
+        } else {
+            // n >= 6: 3人組為主，餘數用4人組補
+            const remainder = n % 3;
+            let g4 = 0;
+            if (remainder === 1) g4 = 1;       // e.g. 7 = 3×1 + 4×1
+            else if (remainder === 2) g4 = 2;   // e.g. 8 = 4×2
+            const g3 = (n - 4 * g4) / 3;
+            const parts = [];
+            if (g3) parts.push(`3人組: ${g3}`);
+            if (g4) parts.push(`4人組: ${g4}`);
+            report.push(`【${cat}】共 ${n} 人 → ${parts.join(', ')}`);
+            let idx = 0;
+            for (let i = 0; i < g3; i++) { groups.push(players.slice(idx, idx + 3)); idx += 3; }
+            for (let i = 0; i < g4; i++) { groups.push(players.slice(idx, idx + 4)); idx += 4; }
+        }
+
+        // Build UI
+        const catDiv = document.createElement('div');
+        catDiv.innerHTML = `<div class="category-header"><h3>${cat}（共 ${n} 人）</h3></div>`;
+        area.appendChild(catDiv);
+
+        let matchCounter = 1;
+        const catGroups = [];
+
+        groups.forEach((members, gi) => {
+            const gName = String.fromCharCode(65 + gi);
+            const pairings = getPairings(members.length);
+            const aw = getAlignWidths(members);
+            const groupCard = document.createElement('div');
+            groupCard.className = 'group-card';
+            groupCard.innerHTML = `<h4>${gName} 組（${members.length} 人：${members.join('、')}）</h4>`;
+
+            const matches = [];
+            pairings.forEach(([i, j]) => {
+                const matchNo = matchCounter++;
+                const matchId = `${cat}_${gName}_${matchNo}`;
+                const row = document.createElement('div');
+                row.className = 'match-row';
+                row.innerHTML = `
+                    <span class="match-no">${matchNo}</span>
+                    <span class="player-name" id="pn1_${matchId}">${alignName(members[i], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',1)" title="點擊切換：傷/棄">棄</span></span>
+                    <input type="number" class="score-input" id="s1_${matchId}" min="0" placeholder="-">
+                    <span class="vs-label">VS</span>
+                    <input type="number" class="score-input" id="s2_${matchId}" min="0" placeholder="-">
+                    <span class="player-name right" id="pn2_${matchId}"><span class="ff-badge" id="ff2_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',2)" title="點擊切換：傷/棄">棄</span>${alignName(members[j], aw.sw, aw.nw)}</span>
+                `;
+                groupCard.appendChild(row);
+                matches.push({ p1: i, p2: j, matchNo, matchId });
+            });
+
+            // Standings button
+            const standingsDiv = document.createElement('div');
+            standingsDiv.id = `standings_${cat}_${gName}`;
+            standingsDiv.style.marginTop = '10px';
+            groupCard.appendChild(standingsDiv);
+
+            const btnCalc = document.createElement('button');
+            btnCalc.className = 'btn btn-light';
+            btnCalc.style.marginTop = '8px';
+            btnCalc.textContent = '計算戰績';
+            btnCalc.onclick = () => renderStandings(cat, gName);
+            groupCard.appendChild(btnCalc);
+
+            area.appendChild(groupCard);
+            catGroups.push({ name: gName, members, matches });
+        });
+
+        state.activeGroups[cat] = catGroups;
+    });
+
+    switchTab('scoring');
+    saveState();
+    if (report.length) showToast(report.join(' | '), 'info');
+}
+
+function getPairings(n) {
+    if (n === 2) return [[0, 1]];
+    if (n === 3) return [[0, 1], [0, 2], [1, 2]];
+    if (n === 4) return [[0, 1], [2, 3], [0, 2], [1, 3], [0, 3], [1, 2]];
+    const pairs = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) pairs.push([i, j]);
+    return pairs;
+}
+
+function getScores(cat, group) {
+    const scores = {};
+    group.members.forEach((_, i) => scores[i] = { wins: 0, losses: 0, pf: 0, pa: 0, forfeits: 0 });
+    let hasScore = false;
+    group.matches.forEach(m => {
+        const f1 = getFF(m.matchId, 1); // '' | 'injury' | 'voluntary'
+        const f2 = getFF(m.matchId, 2);
+
+        if (f1 || f2) {
+            hasScore = true;
+
+            // Injury forfeit: scores still count, but injured player loses
+            if (f1 === 'injury' && !f2) {
+                const s1El = document.getElementById('s1_' + m.matchId);
+                const s2El = document.getElementById('s2_' + m.matchId);
+                const v1 = parseInt(s1El ? s1El.value : '');
+                const v2 = parseInt(s2El ? s2El.value : '');
+                if (!isNaN(v1) && !isNaN(v2)) {
+                    scores[m.p1].pf += v1; scores[m.p1].pa += v2;
+                    scores[m.p2].pf += v2; scores[m.p2].pa += v1;
+                }
+                scores[m.p1].losses++; scores[m.p1].forfeits++;
+                scores[m.p2].wins++;
+                return;
+            }
+            if (f2 === 'injury' && !f1) {
+                const s1El = document.getElementById('s1_' + m.matchId);
+                const s2El = document.getElementById('s2_' + m.matchId);
+                const v1 = parseInt(s1El ? s1El.value : '');
+                const v2 = parseInt(s2El ? s2El.value : '');
+                if (!isNaN(v1) && !isNaN(v2)) {
+                    scores[m.p1].pf += v1; scores[m.p1].pa += v2;
+                    scores[m.p2].pf += v2; scores[m.p2].pa += v1;
+                }
+                scores[m.p2].losses++; scores[m.p2].forfeits++;
+                scores[m.p1].wins++;
+                return;
+            }
+
+            // Voluntary forfeit or both forfeit: 0 points, auto-loss
+            if (f1) { scores[m.p1].losses++; scores[m.p1].forfeits++; }
+            if (f2) { scores[m.p2].losses++; scores[m.p2].forfeits++; }
+            if (f1 && !f2) scores[m.p2].wins++;
+            if (f2 && !f1) scores[m.p1].wins++;
+            return;
+        }
+
+        // Normal score
+        const s1El = document.getElementById('s1_' + m.matchId);
+        const s2El = document.getElementById('s2_' + m.matchId);
+        if (!s1El || !s2El) return;
+        const v1 = parseInt(s1El.value);
+        const v2 = parseInt(s2El.value);
+        if (isNaN(v1) || isNaN(v2)) return;
+        hasScore = true;
+        scores[m.p1].pf += v1; scores[m.p1].pa += v2;
+        scores[m.p2].pf += v2; scores[m.p2].pa += v1;
+        if (v1 > v2) { scores[m.p1].wins++; scores[m.p2].losses++; }
+        else if (v2 > v1) { scores[m.p2].wins++; scores[m.p1].losses++; }
+    });
+    return { scores, hasScore };
+}
+
+function sameRecord(a, b) {
+    return a.wins === b.wins && (a.pf - a.pa) === (b.pf - b.pa);
+}
+
+function renderStandings(cat, gName) {
+    const groups = state.activeGroups[cat];
+    const group = groups.find(g => g.name === gName);
+    if (!group) return;
+    const { scores, hasScore } = getScores(cat, group);
+    if (!hasScore) { showToast('請先輸入比分', 'error'); return; }
+
+    const voluntaryPlayers = new Set();
+    group.matches.forEach(m => {
+        if (getFF(m.matchId, 1) === 'voluntary') voluntaryPlayers.add(m.p1);
+        if (getFF(m.matchId, 2) === 'voluntary') voluntaryPlayers.add(m.p2);
+    });
+
+    const ranked = Object.entries(scores).sort((a, b) => {
+        if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
+        return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
+    });
+
+    const totalInCat = groups.reduce((s, g) => s + g.members.length, 0);
+    const nQualify = getQualifyCount(group.members.length, totalInCat);
+
+    // Detect tie at qualification boundary
+    const boundaryScore = ranked[nQualify - 1] ? ranked[nQualify - 1][1] : null;
+    let hasTie = false;
+    const tiedIndices = new Set();
+    if (boundaryScore) {
+        // Find all players with the same record as the boundary
+        ranked.forEach(([idx, s], rank) => {
+            if (sameRecord(s, boundaryScore)) tiedIndices.add(rank);
+        });
+        // Tie exists only if tied group spans across the boundary
+        const tiedArr = [...tiedIndices];
+        const minTied = Math.min(...tiedArr);
+        const maxTied = Math.max(...tiedArr);
+        if (minTied < nQualify && maxTied >= nQualify) {
+            hasTie = true;
+        } else {
+            tiedIndices.clear();
+        }
+    }
+
+    const groupKey = `${cat}_${gName}`;
+    if (!state.manualQualify) state.manualQualify = {};
+
+    const div = document.getElementById(`standings_${cat}_${gName}`);
+    const aw = getAlignWidths(group.members);
+    let html = '';
+
+    if (hasTie) {
+        const minTied = Math.min(...tiedIndices);
+        const slotsForTied = nQualify - minTied;
+        html += `<div class="tie-warn">⚠ 平手！勝場與淨分相同，請從平手選手中勾選 ${slotsForTied} 人晉級</div>`;
+    }
+
+    html += `<table class="standings-table"><thead><tr>`;
+    if (hasTie) html += `<th>晉級</th>`;
+    html += `<th>排名</th><th>選手</th><th>勝</th><th>負</th><th>棄權</th><th>得分</th><th>失分</th><th>淨分</th><th>備註</th></tr></thead><tbody>`;
+
+    ranked.forEach(([idx, s], rank) => {
+        const isTied = tiedIndices.has(rank);
+        const autoQualified = !hasTie && rank < nQualify;
+        const isVoluntary = voluntaryPlayers.has(parseInt(idx));
+        let note = isVoluntary ? '<span style="color:#ea4335;font-weight:600;">棄</span>' : '';
+        if (isTied) note += (note ? ' ' : '') + '<span style="color:#e67e00;font-weight:600;">平手</span>';
+
+        let rowClass = '';
+        if (autoQualified) rowClass = 'qualified';
+        else if (isTied) rowClass = 'tied';
+
+        html += `<tr class="${rowClass}">`;
+        if (hasTie) {
+            if (isTied) {
+                const prev = state.manualQualify[groupKey] || [];
+                const checked = prev.includes(parseInt(idx)) ? ' checked' : '';
+                html += `<td><input type="checkbox" class="tie-check" data-group="${groupKey}" data-idx="${idx}"${checked} onchange="onTieCheck('${groupKey}',${nQualify})"></td>`;
+            } else if (rank < [...tiedIndices][0]) {
+                // Above tie group — auto qualified
+                html += `<td>&#10004;</td>`;
+            } else {
+                html += `<td></td>`;
+            }
+        }
+        html += `<td>${rank + 1}${autoQualified ? ' &#10004;' : ''}</td><td>${alignName(group.members[idx], aw.sw, aw.nw)}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.forfeits || 0}</td><td>${s.pf}</td><td>${s.pa}</td><td>${s.pf - s.pa}</td><td>${note}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    div.innerHTML = html;
+}
+
+function onTieCheck(groupKey, nQualify) {
+    if (!state.manualQualify) state.manualQualify = {};
+    const checks = document.querySelectorAll(`.tie-check[data-group="${groupKey}"]`);
+    const selected = [];
+    checks.forEach(cb => { if (cb.checked) selected.push(parseInt(cb.dataset.idx)); });
+
+    // Count auto-qualified rows (those with ✔ in first column, above tied group)
+    const table = checks[0].closest('table');
+    let autoCount = 0;
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        const firstTd = tr.querySelector('td');
+        if (firstTd && firstTd.textContent.trim() === '✔') autoCount++;
+    });
+    const slotsForTied = nQualify - autoCount;
+
+    if (selected.length > slotsForTied) {
+        // Uncheck the one just clicked (last in selected)
+        const lastIdx = selected[selected.length - 1];
+        checks.forEach(cb => { if (parseInt(cb.dataset.idx) === lastIdx) cb.checked = false; });
+        selected.pop();
+        showToast(`平手晉級名額僅 ${slotsForTied} 人，已達上限`, 'error');
+    }
+
+    state.manualQualify[groupKey] = selected;
+    saveState();
+}
+
+function getQualifyCount(nMembers, totalInCat) {
+    if (totalInCat === 5) return 2;
+    if (nMembers === 4) return 2;
+    return 1;
+}
+
+function getGroupQualifiers(cat, group) {
+    const { scores, hasScore } = getScores(cat, group);
+    if (!hasScore) return [];
+    const ranked = Object.entries(scores).sort((a, b) => {
+        if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
+        return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
+    });
+    const totalInCat = state.activeGroups[cat].reduce((s, g) => s + g.members.length, 0);
+    const nQ = getQualifyCount(group.members.length, totalInCat);
+
+    // Detect tie at boundary
+    const boundaryScore = ranked[nQ - 1] ? ranked[nQ - 1][1] : null;
+    if (boundaryScore) {
+        const tiedRanks = [];
+        ranked.forEach(([idx, s], rank) => { if (sameRecord(s, boundaryScore)) tiedRanks.push(rank); });
+        const minTied = Math.min(...tiedRanks);
+        const maxTied = Math.max(...tiedRanks);
+        if (minTied < nQ && maxTied >= nQ) {
+            // Tie exists — use manual selections
+            const groupKey = `${cat}_${group.name}`;
+            const manual = (state.manualQualify && state.manualQualify[groupKey]) || [];
+            // Auto-qualified: above tied group
+            const result = [];
+            ranked.forEach(([idx, s], rank) => {
+                if (rank < minTied) result.push(group.members[idx]);
+                else if (sameRecord(s, boundaryScore) && manual.includes(parseInt(idx))) result.push(group.members[idx]);
+            });
+            return result;
+        }
+    }
+
+    return ranked.slice(0, nQ).map(([idx]) => group.members[idx]);
+}
+
+function promoteWinners() {
+    // Check for unresolved ties
+    if (!state.manualQualify) state.manualQualify = {};
+    for (const cat in state.activeGroups) {
+        for (const g of state.activeGroups[cat]) {
+            const { scores, hasScore } = getScores(cat, g);
+            if (!hasScore) continue;
+            const ranked = Object.entries(scores).sort((a, b) => {
+                if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
+                return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
+            });
+            const totalInCat = state.activeGroups[cat].reduce((s, gr) => s + gr.members.length, 0);
+            const nQ = getQualifyCount(g.members.length, totalInCat);
+            const boundaryScore = ranked[nQ - 1] ? ranked[nQ - 1][1] : null;
+            if (boundaryScore) {
+                const tiedRanks = [];
+                ranked.forEach(([idx, s], rank) => { if (sameRecord(s, boundaryScore)) tiedRanks.push(rank); });
+                const minTied = Math.min(...tiedRanks);
+                const maxTied = Math.max(...tiedRanks);
+                if (minTied < nQ && maxTied >= nQ) {
+                    const groupKey = `${cat}_${g.name}`;
+                    const manual = state.manualQualify[groupKey] || [];
+                    const slotsForTied = nQ - minTied;
+                    if (manual.length !== slotsForTied) {
+                        showToast(`${cat} ${g.name} 組有平手，請先在戰績表中勾選晉級者（需選 ${slotsForTied} 人）`, 'error');
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    const winners = [];
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(g => {
+            const qs = getGroupQualifiers(cat, g);
+            qs.forEach((name, i) => {
+                winners.push({ label: `${cat} ${g.name}${i + 1}`, name });
+            });
+        });
+    }
+    if (winners.length === 0) { showToast('無晉級者，請先輸入比分', 'error'); return; }
+    state.finalQualifiers = winners;
+    renderFinalsList();
+    switchTab('finals');
+    saveState();
+    showToast(`${winners.length} 位選手晉級決賽`, 'success');
+}
+
+// ============================================================
+// Tab 3: Finals
+// ============================================================
+function renderFinalsList() {
+    const list = document.getElementById('finalsList');
+
+    // Clear dynamic items only
+    Array.from(list.querySelectorAll('.finals-item')).forEach(el => el.remove());
+
+    // Ensure finalsEmpty element exists
+    let empty = document.getElementById('finalsEmpty');
+    if (!empty) {
+        empty = document.createElement('li');
+        empty.id = 'finalsEmpty';
+        empty.className = 'empty-state';
+        empty.innerHTML = '<div class="icon">&#127942;</div><p>尚無晉級者，請先在預賽計分中結算冠軍</p>';
+        list.appendChild(empty);
+    }
+
+    if (state.finalQualifiers.length === 0) {
+        empty.style.display = '';
+        return;
+    }
+    empty.style.display = 'none';
+    const aw = getAlignWidths(state.finalQualifiers.map(q => q.name));
+    state.finalQualifiers.forEach((q, i) => {
+        const li = document.createElement('li');
+        li.className = 'finals-item';
+        li.innerHTML = `<span class="rank">${i + 1}</span><span>${q.label}：${alignName(q.name, aw.sw, aw.nw)}</span>`;
+        list.appendChild(li);
+    });
+}
+
+function shuffleFinals() {
+    if (state.finalQualifiers.length === 0) return;
+    shuffle(state.finalQualifiers);
+    renderFinalsList();
+    saveState();
+    showToast('已重新抽籤', 'success');
+}
+
+function generateBracket() {
+    if (state.finalQualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
+
+    const players = state.finalQualifiers.map(q => q.name);
+    // Pad to next power of 2
+    const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
+    while (players.length < size) players.push('—BYE—');
+
+    const rounds = Math.log2(size);
+    const bracketDiv = document.getElementById('bracketArea');
+    bracketDiv.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    const title = document.getElementById('finalTitle').value.trim() || '決賽對戰表';
+    card.innerHTML = `<h3>${title}</h3>`;
+
+    const bracketContainer = document.createElement('div');
+    bracketContainer.className = 'bracket';
+    bracketContainer.style.display = 'flex';
+    bracketContainer.style.alignItems = 'center';
+
+    let currentRound = [];
+    for (let i = 0; i < players.length; i += 2) {
+        currentRound.push([players[i], players[i + 1]]);
+    }
+
+    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+
+    for (let r = 0; r < rounds; r++) {
+        const roundDiv = document.createElement('div');
+        roundDiv.className = 'bracket-round';
+        const roundName = rounds - r <= roundNames.length ? roundNames[roundNames.length - (rounds - r)] : `第 ${r + 1} 輪`;
+        roundDiv.innerHTML = `<h4>${roundName}</h4>`;
+
+        currentRound.forEach(([p1, p2]) => {
+            const matchDiv = document.createElement('div');
+            matchDiv.className = 'bracket-match';
+            const p1Bye = p1 === '—BYE—';
+            const p2Bye = p2 === '—BYE—';
+            matchDiv.innerHTML = `
+                <div class="bracket-slot ${p2Bye ? 'winner' : ''}">${p1Bye ? '<span style="color:#ccc">輪空</span>' : p1}</div>
+                <div class="bracket-slot ${p1Bye ? 'winner' : ''}">${p2Bye ? '<span style="color:#ccc">輪空</span>' : p2}</div>
+            `;
+            roundDiv.appendChild(matchDiv);
+        });
+
+        bracketContainer.appendChild(roundDiv);
+
+        // Next round
+        const nextRound = [];
+        for (let i = 0; i < currentRound.length; i += 2) {
+            const w1 = currentRound[i][0] === '—BYE—' ? currentRound[i][1] : (currentRound[i][1] === '—BYE—' ? currentRound[i][0] : '');
+            const w2 = (i + 1 < currentRound.length) ? (currentRound[i + 1][0] === '—BYE—' ? currentRound[i + 1][1] : (currentRound[i + 1][1] === '—BYE—' ? currentRound[i + 1][0] : '')) : '';
+            nextRound.push([w1 || '待定', w2 || '待定']);
+        }
+        currentRound = nextRound;
+    }
+
+    card.appendChild(bracketContainer);
+    bracketDiv.appendChild(card);
+}
+
+function generateFinalsScoreTable() {
+    if (state.finalQualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
+
+    const players = state.finalQualifiers.map(q => q.name);
+    const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
+    while (players.length < size) players.push('—BYE—');
+    const rounds = Math.log2(size);
+    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+    const title = document.getElementById('finalTitle').value.trim() || '決賽對戰表';
+
+    // Build first round pairings
+    let currentRound = [];
+    for (let i = 0; i < players.length; i += 2) currentRound.push([players[i], players[i + 1]]);
+
+    // Build all rounds data
+    const allRounds = [];
+    for (let r = 0; r < rounds; r++) {
+        const rName = rounds - r <= roundNames.length ? roundNames[roundNames.length - (rounds - r)] : '第 ' + (r + 1) + ' 輪';
+        const matches = currentRound.map(([p1, p2], mi) => {
+            const bye1 = p1 === '—BYE—', bye2 = p2 === '—BYE—';
+            return { p1, p2, bye1, bye2, id: 'fsr' + r + 'm' + mi };
+        });
+        allRounds.push({ name: rName, matches });
+        const next = [];
+        for (let i = 0; i < currentRound.length; i += 2) {
+            const w1 = currentRound[i][0] === '—BYE—' ? currentRound[i][1] : (currentRound[i][1] === '—BYE—' ? currentRound[i][0] : null);
+            const w2 = (i + 1 < currentRound.length) ? (currentRound[i + 1][0] === '—BYE—' ? currentRound[i + 1][1] : (currentRound[i + 1][1] === '—BYE—' ? currentRound[i + 1][0] : null)) : null;
+            next.push([w1 || '待定', w2 || '待定']);
+        }
+        currentRound = next;
+    }
+
+    // Collect all player names for alignment
+    const allNames = players.filter(p => p !== '—BYE—');
+    const aw = getAlignWidths(allNames);
+
+    const area = document.getElementById('finalsScoreArea');
+    area.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<h3>' + title + ' — 評分表</h3>';
+
+    allRounds.forEach((round, ri) => {
+        const hasBye = round.matches.every(m => m.bye1 || m.bye2);
+        if (hasBye && ri === 0 && rounds > 1) return; // skip pure-bye first round
+
+        const section = document.createElement('div');
+        section.className = 'group-card';
+        section.innerHTML = '<h4>' + round.name + '</h4>';
+
+        round.matches.forEach((m, mi) => {
+            if (m.bye1 && m.bye2) return;
+            const matchNo = ri * 100 + mi + 1;
+            const row = document.createElement('div');
+            row.className = 'match-row';
+            const p1Display = m.bye1 ? '<span style="color:var(--text-placeholder)">輪空</span>' : alignName(m.p1, aw.sw, aw.nw);
+            const p2Display = m.bye2 ? '<span style="color:var(--text-placeholder)">輪空</span>' : alignName(m.p2, aw.sw, aw.nw);
+            const disabled1 = m.bye1 ? ' disabled' : '';
+            const disabled2 = m.bye2 ? ' disabled' : '';
+            row.innerHTML =
+                '<span class="match-no">' + (mi + 1) + '</span>' +
+                '<span class="player-name">' + p1Display + '</span>' +
+                '<input type="number" class="score-input" id="fs1_' + m.id + '" min="0" placeholder="-"' + disabled1 + '>' +
+                '<span class="vs-label">VS</span>' +
+                '<input type="number" class="score-input" id="fs2_' + m.id + '" min="0" placeholder="-"' + disabled2 + '>' +
+                '<span class="player-name right">' + p2Display + '</span>';
+            section.appendChild(row);
+        });
+
+        card.appendChild(section);
+    });
+
+    area.appendChild(card);
+    showToast('已產生決賽評分表', 'success');
+}
+
+function printFinalsBracketPDF() {
+    if (state.finalQualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
+
+    const title = document.getElementById('finalTitle').value.trim() || '決賽對戰圖';
+    const pageW = 800;
+    const br = buildBracketSVG(state.finalQualifiers, pageW);
+
+    // Build full SVG with title header
+    const headerH = 50;
+    const svgH = br.height + headerH + 20;
+    let fullSvg = '';
+    fullSvg += '<text x="' + (pageW / 2) + '" y="28" text-anchor="middle" font-size="18" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(title) + '</text>';
+    fullSvg += '<g transform="translate(0,' + headerH + ')">' + br.svg + '</g>';
+
+    const win = window.open('', '_blank');
+    const doc = win.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeXml(title) + '</title>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+    doc.write('<style>');
+    doc.write('@media print { body { margin: 0; } .no-print { display: none; } @page { margin: 8mm; } }');
+    doc.write('body { font-family: "Microsoft JhengHei", sans-serif; background: #fff; margin: 20px; }');
+    doc.write('.no-print { text-align: center; margin-bottom: 16px; }');
+    doc.write('.no-print button { padding: 10px 24px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; margin: 0 6px; font-weight: 600; }');
+    doc.write('.btn-print { background: #1a73e8; color: #fff; }');
+    doc.write('.btn-pdf { background: #ea4335; color: #fff; }');
+    doc.write('svg { display: block; margin: 0 auto; max-width: 100%; }');
+    doc.write('</style></head><body>');
+    doc.write('<div class="no-print">');
+    doc.write('<button class="btn-print" onclick="window.print()">列印</button>');
+    doc.write('<button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button>');
+    doc.write('</div>');
+    doc.write('<svg id="bracketSvg" xmlns="http://www.w3.org/2000/svg" width="' + pageW + '" height="' + svgH + '" viewBox="0 0 ' + pageW + ' ' + svgH + '">');
+    doc.write('<rect width="100%" height="100%" fill="white"/>');
+    doc.write(fullSvg);
+    doc.write('</svg>');
+
+    doc.write('<scr' + 'ipt>');
+    doc.write('function downloadPDF() {');
+    doc.write('  if (typeof jspdf === "undefined") { alert("PDF 元件載入中，請稍後再試"); return; }');
+    doc.write('  var el = document.getElementById("bracketSvg");');
+    doc.write('  var data = new XMLSerializer().serializeToString(el);');
+    doc.write('  var blob = new Blob([data], {type:"image/svg+xml;charset=utf-8"});');
+    doc.write('  var url = URL.createObjectURL(blob);');
+    doc.write('  var img = new Image();');
+    doc.write('  img.onload = function() {');
+    doc.write('    var sc = 1.5;');
+    doc.write('    var cv = document.createElement("canvas");');
+    doc.write('    cv.width = img.width * sc; cv.height = img.height * sc;');
+    doc.write('    var ctx = cv.getContext("2d");');
+    doc.write('    ctx.fillStyle = "#fff"; ctx.fillRect(0,0,cv.width,cv.height);');
+    doc.write('    ctx.scale(sc,sc); ctx.drawImage(img,0,0);');
+    doc.write('    var imgData = cv.toDataURL("image/jpeg",0.75);');
+    doc.write('    URL.revokeObjectURL(url);');
+    doc.write('    var orient = img.width > img.height ? "landscape" : "portrait";');
+    doc.write('    var pdf = new jspdf.jsPDF({orientation:orient,unit:"mm",format:"a4",compress:true});');
+    doc.write('    var pw = orient === "landscape" ? 297 : 210;');
+    doc.write('    var ph = orient === "landscape" ? 210 : 297;');
+    doc.write('    var m=8, uw=pw-m*2, uh=ph-m*2;');
+    doc.write('    var r = Math.min(uw/img.width, uh/img.height);');
+    doc.write('    pdf.addImage(imgData,"JPEG",m+(uw-img.width*r)/2,m,img.width*r,img.height*r,undefined,"FAST");');
+    doc.write('    pdf.save("' + escapeXml(title) + '.pdf");');
+    doc.write('  };');
+    doc.write('  img.src = url;');
+    doc.write('}');
+    doc.write('</scr' + 'ipt>');
+    doc.write('</body></html>');
+    doc.close();
+}
+
+// ============================================================
+// Save / Load tournament file (.xlsx)
+// ============================================================
+function saveToExcel() {
+    if (Object.keys(state.activeGroups).length === 0 && Object.keys(state.setupPool).length === 0) {
+        showToast('尚無資料可存檔', 'error'); return;
+    }
+
+    // Collect current scores + forfeits
+    const scores = {};
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(g => {
+            g.matches.forEach(m => {
+                const s1 = document.getElementById('s1_' + m.matchId);
+                const s2 = document.getElementById('s2_' + m.matchId);
+                scores[m.matchId] = [
+                    s1 ? s1.value || '' : '',
+                    s2 ? s2.value || '' : '',
+                    getFF(m.matchId, 1),
+                    getFF(m.matchId, 2)
+                ];
+            });
+        });
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // _state sheet: JSON data for restore
+    const stateData = JSON.stringify({
+        setupPool: state.setupPool,
+        activeGroups: state.activeGroups,
+        finalQualifiers: state.finalQualifiers,
+        manualQualify: state.manualQualify || {},
+        scores: scores
+    });
+    const stateSheet = XLSX.utils.aoa_to_sheet([
+        ['__BADMINTON_SAVE_V1__'],
+        [stateData]
+    ]);
+    XLSX.utils.book_append_sheet(wb, stateSheet, '_state');
+
+    // Human-readable sheets per category
+    for (const cat in state.activeGroups) {
+        const rows = [];
+        rows.push([cat]);
+        rows.push([]);
+        state.activeGroups[cat].forEach(group => {
+            rows.push([group.name + ' 組（' + group.members.join('、') + '）']);
+            rows.push(['場次', '選手1', '比分1', 'VS', '比分2', '選手2', '備註']);
+            group.matches.forEach(m => {
+                const sc = scores[m.matchId] || ['', '', '', ''];
+                const typeLabel = { injury: '受傷棄權', voluntary: '主動棄權' };
+                let note = '';
+                if (sc[2]) note += group.members[m.p1] + ' ' + (typeLabel[sc[2]] || '棄權');
+                if (sc[3]) note += (note ? '、' : '') + group.members[m.p2] + ' ' + (typeLabel[sc[3]] || '棄權');
+                const d1 = sc[2] === 'voluntary' ? '棄' : (sc[2] === 'injury' ? sc[0] + '(傷)' : sc[0]);
+                const d2 = sc[3] === 'voluntary' ? '棄' : (sc[3] === 'injury' ? sc[1] + '(傷)' : sc[1]);
+                rows.push([m.matchNo, group.members[m.p1], d1, 'VS', d2, group.members[m.p2], note]);
+            });
+            rows.push([]);
+        });
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 6 }, { wch: 18 }, { wch: 6 }, { wch: 4 }, { wch: 6 }, { wch: 18 }, { wch: 20 }];
+        XLSX.utils.book_append_sheet(wb, ws, cat.substring(0, 31));
+    }
+
+    const now = new Date();
+    const ts = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') +
+               '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+    XLSX.writeFile(wb, '羽球賽務存檔_' + ts + '.xlsx');
+    showToast('存檔成功', 'success');
+}
+
+function loadFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            // Check for _state sheet
+            if (!wb.SheetNames.includes('_state')) {
+                showToast('此檔案非賽務存檔（缺少 _state）', 'error');
+                return;
+            }
+            const data = XLSX.utils.sheet_to_json(wb.Sheets['_state'], { header: 1 });
+            if (!data[0] || data[0][0] !== '__BADMINTON_SAVE_V1__') {
+                showToast('存檔格式不正確', 'error');
+                return;
+            }
+            const saved = JSON.parse(data[1][0]);
+
+            // Restore state
+            if (saved.setupPool) state.setupPool = saved.setupPool;
+            if (saved.activeGroups) state.activeGroups = saved.activeGroups;
+            if (saved.finalQualifiers) state.finalQualifiers = saved.finalQualifiers;
+            if (saved.manualQualify) state.manualQualify = saved.manualQualify;
+            state.selectedPoolItem = null;
+            state.editingKey = null;
+
+            // Rebuild UI
+            refreshPoolList();
+            if (Object.keys(state.activeGroups).length > 0) {
+                rebuildScoringUI(saved.scores || {});
+            }
+            if (state.finalQualifiers.length > 0) {
+                renderFinalsList();
+            }
+            saveState();
+            showToast('存檔載入成功', 'success');
+        } catch (err) {
+            showToast('載入失敗: ' + err.message, 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+}
+
+// ============================================================
+// Excel export (成績報表)
+// ============================================================
+function generateExcel() {
+    if (Object.keys(state.activeGroups).length === 0) { showToast('尚無賽事資料', 'error'); return; }
+
+    const wb = XLSX.utils.book_new();
+
+    for (const cat in state.activeGroups) {
+        const rows = [];
+        rows.push([`賽制: ${cat}`]);
+        rows.push([]);
+
+        state.activeGroups[cat].forEach(group => {
+            const n = group.members.length;
+
+            // --- 多角對戰圖 (Round-Robin Matrix) ---
+            rows.push([`${group.name} 組 — 多角對戰圖`]);
+
+            // Build score matrix: scoreMatrix[i][j] = "v1:v2" or "棄權" from i's perspective
+            const scoreMatrix = Array.from({ length: n }, () => Array(n).fill(''));
+            group.matches.forEach(m => {
+                const f1 = getFF(m.matchId, 1);
+                const f2 = getFF(m.matchId, 2);
+                if (f1 || f2) {
+                    // Injury: show score + (傷), Voluntary: show 棄
+                    if (f1 === 'injury') {
+                        const s1El = document.getElementById('s1_' + m.matchId);
+                        const s2El = document.getElementById('s2_' + m.matchId);
+                        const v1 = s1El ? s1El.value : ''; const v2 = s2El ? s2El.value : '';
+                        scoreMatrix[m.p1][m.p2] = (v1 && v2 ? v1 + ':' + v2 : '') + '(傷)';
+                        scoreMatrix[m.p2][m.p1] = (v1 && v2 ? v2 + ':' + v1 : '') + ' W';
+                    } else if (f1 === 'voluntary') {
+                        scoreMatrix[m.p1][m.p2] = '棄';
+                        scoreMatrix[m.p2][m.p1] = 'W';
+                    }
+                    if (f2 === 'injury') {
+                        const s1El = document.getElementById('s1_' + m.matchId);
+                        const s2El = document.getElementById('s2_' + m.matchId);
+                        const v1 = s1El ? s1El.value : ''; const v2 = s2El ? s2El.value : '';
+                        scoreMatrix[m.p2][m.p1] = (v1 && v2 ? v2 + ':' + v1 : '') + '(傷)';
+                        scoreMatrix[m.p1][m.p2] = (v1 && v2 ? v1 + ':' + v2 : '') + ' W';
+                    } else if (f2 === 'voluntary') {
+                        scoreMatrix[m.p2][m.p1] = '棄';
+                        scoreMatrix[m.p1][m.p2] = 'W';
+                    }
+                    return;
+                }
+                const s1El = document.getElementById('s1_' + m.matchId);
+                const s2El = document.getElementById('s2_' + m.matchId);
+                const v1 = s1El ? s1El.value : '';
+                const v2 = s2El ? s2El.value : '';
+                if (v1 !== '' && v2 !== '') {
+                    scoreMatrix[m.p1][m.p2] = `${v1}:${v2}`;
+                    scoreMatrix[m.p2][m.p1] = `${v2}:${v1}`;
+                }
+            });
+
+            // Reuse getScores() for stats
+            const { scores } = getScores(cat, group);
+            const stats = group.members.map((_, i) => ({
+                w: scores[i].wins, l: scores[i].losses, ff: scores[i].forfeits || 0, pf: scores[i].pf, pa: scores[i].pa
+            }));
+
+            // Header row
+            const header = [`${group.name}組`];
+            group.members.forEach(m => header.push(m));
+            header.push('勝', '負', '棄權', '淨分', '排名');
+            rows.push(header);
+
+            // Rank players
+            const ranked = group.members.map((_, i) => i).sort((a, b) => {
+                if (stats[b].w !== stats[a].w) return stats[b].w - stats[a].w;
+                return (stats[b].pf - stats[b].pa) - (stats[a].pf - stats[a].pa);
+            });
+            const rankMap = {};
+            ranked.forEach((idx, r) => rankMap[idx] = r + 1);
+
+            // Data rows
+            group.members.forEach((name, i) => {
+                const row = [name];
+                for (let j = 0; j < n; j++) {
+                    if (i === j) row.push('\\');
+                    else row.push(scoreMatrix[i][j] || '-');
+                }
+                row.push(stats[i].w, stats[i].l, stats[i].ff, stats[i].pf - stats[i].pa, rankMap[i]);
+                rows.push(row);
+            });
+
+            rows.push([]);
+
+            // --- 場次明細 ---
+            rows.push(['場次明細']);
+            rows.push(['場次', '選手1', '比分', '', '選手2', '', '備註']);
+            group.matches.forEach(m => {
+                const f1 = getFF(m.matchId, 1);
+                const f2 = getFF(m.matchId, 2);
+                const s1El = document.getElementById('s1_' + m.matchId);
+                const s2El = document.getElementById('s2_' + m.matchId);
+                const v1 = s1El ? s1El.value : '';
+                const v2 = s2El ? s2El.value : '';
+                let note = '';
+                const typeLabel = { injury: '受傷棄權', voluntary: '主動棄權' };
+                if (f1) note += group.members[m.p1] + ' ' + typeLabel[f1];
+                if (f2) note += (note ? '、' : '') + group.members[m.p2] + ' ' + typeLabel[f2];
+                const d1 = f1 === 'voluntary' ? '棄' : (f1 === 'injury' ? v1 + '(傷)' : v1);
+                const d2 = f2 === 'voluntary' ? '棄' : (f2 === 'injury' ? v2 + '(傷)' : v2);
+                rows.push([m.matchNo, group.members[m.p1], d1, 'VS', d2, group.members[m.p2], note]);
+            });
+
+            rows.push([]); rows.push([]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+
+        // Style: set column widths
+        const maxMembers = Math.max(...state.activeGroups[cat].map(g => g.members.length));
+        const cols = [{ wch: 16 }];
+        for (let i = 0; i < maxMembers; i++) cols.push({ wch: 14 });
+        cols.push({ wch: 5 }, { wch: 5 }, { wch: 6 }, { wch: 6 });
+        ws['!cols'] = cols;
+
+        XLSX.utils.book_append_sheet(wb, ws, cat.substring(0, 31));
+    }
+
+    XLSX.writeFile(wb, '羽球預賽成績.xlsx');
+    showToast('Excel 已下載', 'success');
+}
+
+function exportFinalsExcel() {
+    if (state.finalQualifiers.length === 0) { showToast('無晉級者', 'error'); return; }
+    const wb = XLSX.utils.book_new();
+    const rows = [['決賽名單'], [], ['序號', '來源', '選手']];
+    state.finalQualifiers.forEach((q, i) => rows.push([i + 1, q.label, q.name]));
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 20 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws, '決賽名單');
+    XLSX.writeFile(wb, '羽球決賽名單.xlsx');
+    showToast('決賽 Excel 已下載', 'success');
+}
+
+// ============================================================
+// Chart View — 多角對戰圖 (SVG)
+// ============================================================
+function openChartView() {
+    if (Object.keys(state.activeGroups).length === 0) { showToast('尚無賽事資料', 'error'); return; }
+
+    // Collect all groups across all categories
+    const allGroups = [];
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(group => {
+            allGroups.push({ cat, group });
+        });
+    }
+
+    const hasFinals = state.finalQualifiers.length >= 2;
+
+    // Layout: 2 per row, max 3 rows per page (matching screenshot)
+    const cols = 2;
+    const maxRowsPerPage = 3;
+    const groupW = 300, groupH = 300, gapX = 60, gapY = 10;
+    const pageW = cols * groupW + gapX * 3;
+    const titleH = 80;
+
+    // Per-category pages: group by category, then paginate
+    const catPages = []; // [{cat, titleInfo, groups: [group,...]}]
+    for (const cat in state.activeGroups) {
+        const groups = state.activeGroups[cat];
+        const totalGroups = groups.length;
+        const totalInCat = groups.reduce((s, g) => s + g.members.length, 0);
+        const nQualify = groups.reduce((s, g) => s + getQualifyCount(g.members.length, totalInCat), 0);
+        const titleInfo = '賽制: ' + cat + '\n組數: ' + totalGroups + '\n晉級: ' + nQualify;
+        // Paginate within category
+        for (let i = 0; i < groups.length; i += cols * maxRowsPerPage) {
+            catPages.push({
+                cat,
+                titleInfo,
+                groups: groups.slice(i, i + cols * maxRowsPerPage)
+            });
+        }
+    }
+
+    // Build bracket if needed
+    let bracketSvg = '', bracketH = 0;
+    if (hasFinals) {
+        const br = buildBracketSVG(state.finalQualifiers, pageW);
+        bracketSvg = br.svg;
+        bracketH = br.height + 40;
+    }
+
+    // Open print window
+    const win = window.open('', '_blank');
+    const doc = win.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>對戰圖</title>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+    doc.write('<style>');
+    doc.write('@media print { body { margin: 0; } .no-print { display: none; } @page { margin: 8mm; } .page-break { page-break-after: always; } }');
+    doc.write('body { font-family: "Microsoft JhengHei", sans-serif; background: #fff; margin: 20px; }');
+    doc.write('.no-print { text-align: center; margin-bottom: 16px; }');
+    doc.write('.no-print button { padding: 10px 24px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; margin: 0 6px; font-weight: 600; }');
+    doc.write('.btn-print { background: #1a73e8; color: #fff; }');
+    doc.write('.btn-download { background: #34a853; color: #fff; }');
+    doc.write('.btn-pdf { background: #ea4335; color: #fff; }');
+    doc.write('svg { display: block; margin: 0 auto 20px; max-width: 100%; }');
+    doc.write('</style></head><body>');
+    doc.write('<div class="no-print">');
+    doc.write('<button class="btn-print" onclick="window.print()">列印</button>');
+    doc.write('<button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button>');
+    doc.write('<button class="btn-download" onclick="downloadSVG()">下載 SVG</button>');
+    doc.write('</div>');
+
+    const allSvgIds = [];
+
+    // Render each page
+    catPages.forEach((page, pi) => {
+        const rowsCount = Math.ceil(page.groups.length / cols);
+        const pageH = titleH + rowsCount * (groupH + gapY) + 20;
+        const svgId = 'chartSvg_' + pi;
+        allSvgIds.push(svgId);
+
+        let svg = '';
+        // Title block: 賽制 / 組數 / 晉級 (left-top corner only)
+        const lines = page.titleInfo.split('\n');
+        svg += '<text x="15" y="20" font-size="14" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(lines[0]) + '</text>';
+        svg += '<text x="15" y="40" font-size="14" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(lines[1]) + '</text>';
+        svg += '<text x="15" y="60" font-size="14" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(lines[2]) + '</text>';
+
+        let gx = gapX, gy = titleH;
+        let colIdx = 0;
+
+        page.groups.forEach((group) => {
+            const n = group.members.length;
+            if (n === 3) svg += drawTriangleGroup(gx, gy, groupW, groupH, page.cat, group);
+            else if (n === 4) svg += drawSquareGroup(gx, gy, groupW, groupH, page.cat, group);
+            else if (n === 2) svg += drawLineGroup(gx, gy, groupW, groupH, page.cat, group);
+
+            colIdx++;
+            if (colIdx >= cols) {
+                colIdx = 0;
+                gx = gapX;
+                gy += groupH + gapY;
+            } else {
+                gx += groupW + gapX;
+            }
+        });
+
+        doc.write('<div class="page-break">');
+        doc.write('<svg id="' + svgId + '" xmlns="http://www.w3.org/2000/svg" width="' + pageW + '" height="' + pageH + '" viewBox="0 0 ' + pageW + ' ' + pageH + '">');
+        doc.write('<rect width="100%" height="100%" fill="white"/>');
+        doc.write(svg);
+        doc.write('</svg></div>');
+    });
+
+    // Bracket page
+    if (hasFinals) {
+        const bracketPageH = bracketH + titleH;
+        const bsvgId = 'chartSvg_bracket';
+        allSvgIds.push(bsvgId);
+        let bSvg = '';
+        bSvg += '<text x="15" y="22" font-size="16" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">決賽 — 單淘汰賽</text>';
+        bSvg += '<g transform="translate(0, ' + 40 + ')">' + bracketSvg + '</g>';
+
+        doc.write('<div>');
+        doc.write('<svg id="' + bsvgId + '" xmlns="http://www.w3.org/2000/svg" width="' + pageW + '" height="' + bracketPageH + '" viewBox="0 0 ' + pageW + ' ' + bracketPageH + '">');
+        doc.write('<rect width="100%" height="100%" fill="white"/>');
+        doc.write(bSvg);
+        doc.write('</svg></div>');
+    }
+
+    // Write download script into child window (using split tags to avoid breaking parent)
+    var idsJson = JSON.stringify(allSvgIds);
+    doc.write('<scr' + 'ipt>');
+    doc.write('var svgIds = ' + idsJson + ';');
+    doc.write('function downloadSVG() {');
+    doc.write('  var c = "";');
+    doc.write('  for (var i = 0; i < svgIds.length; i++) c += document.getElementById(svgIds[i]).outerHTML + "\\n";');
+    doc.write('  var b = new Blob([c], {type:"image/svg+xml"});');
+    doc.write('  var a = document.createElement("a");');
+    doc.write('  a.href = URL.createObjectURL(b); a.download = "對戰圖.svg"; a.click();');
+    doc.write('}');
+    doc.write('function downloadPDF() {');
+    doc.write('  if (typeof jspdf === "undefined") { alert("PDF 元件載入中，請稍後再試"); return; }');
+    doc.write('  var imgs = [], loaded = 0, total = svgIds.length;');
+    doc.write('  svgIds.forEach(function(id, idx) {');
+    doc.write('    var el = document.getElementById(id);');
+    doc.write('    var data = new XMLSerializer().serializeToString(el);');
+    doc.write('    var blob = new Blob([data], {type:"image/svg+xml;charset=utf-8"});');
+    doc.write('    var url = URL.createObjectURL(blob);');
+    doc.write('    var img = new Image();');
+    doc.write('    img.onload = function() {');
+    doc.write('      var cv = document.createElement("canvas");');
+    doc.write('      var sc = 1.5;');
+    doc.write('      cv.width = img.width * sc; cv.height = img.height * sc;');
+    doc.write('      var ctx = cv.getContext("2d");');
+    doc.write('      ctx.fillStyle = "#fff"; ctx.fillRect(0,0,cv.width,cv.height);');
+    doc.write('      ctx.scale(sc,sc); ctx.drawImage(img,0,0);');
+    doc.write('      imgs[idx] = {d:cv.toDataURL("image/jpeg",0.75), w:img.width, h:img.height};');
+    doc.write('      URL.revokeObjectURL(url);');
+    doc.write('      loaded++;');
+    doc.write('      if (loaded === total) makePDF(imgs);');
+    doc.write('    };');
+    doc.write('    img.src = url;');
+    doc.write('  });');
+    doc.write('  function makePDF(imgs) {');
+    doc.write('    var pdf = new jspdf.jsPDF({orientation:"portrait",unit:"mm",format:"a4",compress:true});');
+    doc.write('    var pw=210,ph=297,m=8,uw=pw-m*2,uh=ph-m*2;');
+    doc.write('    imgs.forEach(function(im,i) {');
+    doc.write('      if(i>0) pdf.addPage();');
+    doc.write('      var r = Math.min(uw/im.w, uh/im.h);');
+    doc.write('      pdf.addImage(im.d,"JPEG",m+(uw-im.w*r)/2,m,im.w*r,im.h*r,undefined,"FAST");');
+    doc.write('    });');
+    doc.write('    pdf.save("對戰圖.pdf");');
+    doc.write('  }');
+    doc.write('}');
+    doc.write('</scr' + 'ipt>');
+    doc.write('</body></html>');
+    doc.close();
+}
+
+function escapeXml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Match number label: *N format
+function matchNumLabel(x, y, num, fontSize) {
+    fontSize = fontSize || 12;
+    return `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="${fontSize}" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#333">*${num}</text>`;
+}
+
+// Player label — two lines: school on top, name below
+// cat: category name to strip from the beginning if present
+function playerLabel(x, y, text, anchor, cat) {
+    anchor = anchor || 'middle';
+    // Strip category prefix if present (e.g. "四女單 仁愛國小 陳怡昊" → "仁愛國小 陳怡昊")
+    let cleaned = text.trim();
+    if (cat && cleaned.startsWith(cat)) {
+        cleaned = cleaned.substring(cat.length).trim();
+    }
+    const parts = cleaned.split(/\s+/);
+    let school, name;
+    if (parts.length >= 2) {
+        school = parts[0];
+        name = parts.slice(1).join(' ');
+    } else {
+        school = cleaned;
+        name = '';
+    }
+    let s = `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="11" font-family="Microsoft JhengHei, sans-serif" fill="#555">${escapeXml(school)}</text>`;
+    if (name) {
+        s += `<text x="${x}" y="${y + 15}" text-anchor="${anchor}" font-size="11" font-family="Microsoft JhengHei, sans-serif" fill="#555">${escapeXml(name)}</text>`;
+    }
+    return s;
+}
+
+// ---- Triangle (3 players) ----
+function drawTriangleGroup(ox, oy, w, h, cat, group) {
+    let s = '';
+    const members = group.members;
+    const gName = group.name;
+
+    // Triangle with room for 2-line labels above top and below bottom
+    const topX = ox + w / 2, topY = oy + 80;
+    const blX = ox + 40, blY = oy + h - 60;
+    const brX = ox + w - 40, brY = oy + h - 60;
+
+    // Lines
+    s += `<line x1="${topX}" y1="${topY}" x2="${blX}" y2="${blY}" stroke="#333" stroke-width="1.5"/>`;
+    s += `<line x1="${topX}" y1="${topY}" x2="${brX}" y2="${brY}" stroke="#333" stroke-width="1.5"/>`;
+    s += `<line x1="${blX}" y1="${blY}" x2="${brX}" y2="${brY}" stroke="#333" stroke-width="1.5"/>`;
+
+    // Center letter (large, light gray)
+    const cx = ox + w / 2, cy = (topY + blY) / 2 + 15;
+    s += `<text x="${cx}" y="${cy}" text-anchor="middle" font-size="60" font-weight="bold" fill="#ddd" font-family="Arial, sans-serif">${gName}</text>`;
+
+    // Match numbers on edges: *N format
+    const matchNums = group.matches.map(m => m.matchNo);
+    // Left edge midpoint (shift left)
+    const m0x = (topX + blX) / 2 - 16, m0y = (topY + blY) / 2;
+    // Right edge midpoint (shift right)
+    const m1x = (topX + brX) / 2 + 16, m1y = (topY + brY) / 2;
+    // Bottom edge midpoint (shift down)
+    const m2x = (blX + brX) / 2, m2y = blY + 18;
+
+    if (matchNums[0] !== undefined) s += matchNumLabel(m0x, m0y, matchNums[0]);
+    if (matchNums[1] !== undefined) s += matchNumLabel(m1x, m1y, matchNums[1]);
+    if (matchNums[2] !== undefined) s += matchNumLabel(m2x, m2y, matchNums[2]);
+
+    // Player labels (2-line: school + name), strip category prefix
+    s += playerLabel(topX, topY - 30, members[0], 'middle', cat);
+    s += playerLabel(blX - 10, blY + 22, members[1], 'start', cat);
+    s += playerLabel(brX + 10, brY + 22, members[2], 'end', cat);
+
+    return s;
+}
+
+// ---- Square + X (4 players) ----
+function drawSquareGroup(ox, oy, w, h, cat, group) {
+    let s = '';
+    const members = group.members;
+    const gName = group.name;
+
+    const tlX = ox + 50, tlY = oy + 70;
+    const trX = ox + w - 50, trY = oy + 70;
+    const blX = ox + 50, blY = oy + h - 60;
+    const brX = ox + w - 50, brY = oy + h - 60;
+
+    // Square edges
+    s += `<line x1="${tlX}" y1="${tlY}" x2="${trX}" y2="${trY}" stroke="#333" stroke-width="1.5"/>`;
+    s += `<line x1="${trX}" y1="${trY}" x2="${brX}" y2="${brY}" stroke="#333" stroke-width="1.5"/>`;
+    s += `<line x1="${brX}" y1="${brY}" x2="${blX}" y2="${blY}" stroke="#333" stroke-width="1.5"/>`;
+    s += `<line x1="${blX}" y1="${blY}" x2="${tlX}" y2="${tlY}" stroke="#333" stroke-width="1.5"/>`;
+    // Diagonals
+    s += `<line x1="${tlX}" y1="${tlY}" x2="${brX}" y2="${brY}" stroke="#333" stroke-width="1.5"/>`;
+    s += `<line x1="${trX}" y1="${trY}" x2="${blX}" y2="${blY}" stroke="#333" stroke-width="1.5"/>`;
+
+    // Center letter
+    const cx = ox + w / 2, cy = (tlY + blY) / 2 + 15;
+    s += `<text x="${cx}" y="${cy}" text-anchor="middle" font-size="60" font-weight="bold" fill="#ddd" font-family="Arial, sans-serif">${gName}</text>`;
+
+    // Match numbers — order: (0,1) top, (2,3) bottom, (0,2) left, (1,3) right, (0,3) diag-\, (1,2) diag-/
+    const matchNums = group.matches.map(m => m.matchNo);
+    const positions = [
+        [(tlX + trX) / 2, tlY - 14],                                       // top edge (0,1)
+        [(blX + brX) / 2, blY + 18],                                       // bottom edge (2,3)
+        [tlX - 20, (tlY + blY) / 2],                                       // left edge (0,2)
+        [trX + 20, (trY + brY) / 2],                                       // right edge (1,3)
+        [tlX + (brX - tlX) * 0.3, tlY + (brY - tlY) * 0.28],              // diag \ (0,3) upper-left
+        [trX + (blX - trX) * 0.3, trY + (blY - trY) * 0.28],              // diag / (1,2) upper-right
+    ];
+    matchNums.forEach((num, i) => {
+        if (i < positions.length) s += matchNumLabel(positions[i][0], positions[i][1], num);
+    });
+
+    // Player labels (2-line), strip category prefix
+    s += playerLabel(tlX - 10, tlY - 25, members[0], 'start', cat);
+    s += playerLabel(trX + 10, trY - 25, members[1], 'end', cat);
+    s += playerLabel(blX - 10, blY + 22, members[2], 'start', cat);
+    s += playerLabel(brX + 10, brY + 22, members[3], 'end', cat);
+
+    return s;
+}
+
+// ---- Line (2 players) ----
+function drawLineGroup(ox, oy, w, h, cat, group) {
+    let s = '';
+    const members = group.members;
+    const gName = group.name;
+    const cy = oy + h / 2;
+    const lx = ox + 60, rx = ox + w - 60;
+
+    s += `<line x1="${lx}" y1="${cy}" x2="${rx}" y2="${cy}" stroke="#333" stroke-width="1.5"/>`;
+
+    // Center letter
+    const cx = ox + w / 2;
+    s += `<text x="${cx}" y="${cy - 20}" text-anchor="middle" font-size="60" font-weight="bold" fill="#ddd" font-family="Arial, sans-serif">${gName}</text>`;
+
+    // Match number
+    if (group.matches.length > 0) {
+        s += matchNumLabel(cx, cy - 8, group.matches[0].matchNo);
+    }
+
+    // Labels (2-line), strip category prefix
+    s += playerLabel(lx - 10, cy + 22, members[0], 'start', cat);
+    s += playerLabel(rx + 10, cy + 22, members[1], 'end', cat);
+
+    return s;
+}
+
+// ---- Single Elimination Bracket SVG ----
+function buildBracketSVG(qualifiers, totalWidth) {
+    const players = qualifiers.map(q => q.name);
+    const n = players.length;
+    const size = Math.pow(2, Math.ceil(Math.log2(n)));
+    while (players.length < size) players.push(null); // BYE
+
+    const rounds = Math.log2(size);
+    const matchH = 50, slotH = 22;
+    const roundW = 180, gapRound = 60;
+    const startX = 40;
+    const baseH = size * matchH;
+    const totalH = baseH + 80;
+    const svgW = Math.max(totalWidth, rounds * (roundW + gapRound) + 100);
+
+    let s = '';
+    let globalMatchNo = 1;
+
+    // Pre-calculate all global match numbers from group stage
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(g => {
+            g.matches.forEach(m => {
+                if (m.matchNo >= globalMatchNo) globalMatchNo = m.matchNo + 1;
+            });
+        });
+    }
+
+    // Build bracket data
+    let currentSlots = [];
+    for (let i = 0; i < size; i += 2) {
+        currentSlots.push({ p1: players[i], p2: players[i + 1] });
+    }
+
+    const roundLabels = [];
+    for (let r = 0; r < rounds; r++) {
+        if (r === rounds - 1) roundLabels.push('決賽');
+        else if (r === rounds - 2) roundLabels.push('準決賽');
+        else roundLabels.push(`第${r + 1}輪`);
+    }
+
+    // Separator line
+    s += `<line x1="20" y1="10" x2="${svgW - 20}" y2="10" stroke="#ccc" stroke-width="0.5" stroke-dasharray="4"/>`;
+    s += `<text x="${svgW / 2}" y="30" text-anchor="middle" font-size="14" font-weight="bold" font-family="Microsoft JhengHei, sans-serif">決賽 — 單淘汰賽</text>`;
+
+    for (let r = 0; r < rounds; r++) {
+        const nMatches = currentSlots.length;
+        const spacing = baseH / nMatches;
+        const rx = startX + r * (roundW + gapRound);
+
+        // Round label
+        s += `<text x="${rx + roundW / 2}" y="50" text-anchor="middle" font-size="11" fill="#888" font-family="Microsoft JhengHei, sans-serif">${roundLabels[r]}</text>`;
+
+        const nextSlots = [];
+
+        currentSlots.forEach((match, mi) => {
+            const my = 60 + mi * spacing + spacing / 2 - matchH / 2;
+            const matchNo = globalMatchNo++;
+
+            const p1Text = match.p1 || '輪空';
+            const p2Text = match.p2 || '輪空';
+            const isBye1 = !match.p1;
+            const isBye2 = !match.p2;
+
+            // Box
+            s += `<rect x="${rx}" y="${my}" width="${roundW}" height="${matchH}" rx="4" fill="white" stroke="#999" stroke-width="1"/>`;
+            s += `<line x1="${rx}" y1="${my + slotH}" x2="${rx + roundW}" y2="${my + slotH}" stroke="#ddd"/>`;
+
+            // Player names
+            s += `<text x="${rx + 8}" y="${my + 16}" font-size="11" font-family="Microsoft JhengHei, sans-serif" fill="${isBye1 ? '#ccc' : '#333'}">${escapeXml(p1Text)}</text>`;
+            s += `<text x="${rx + 8}" y="${my + slotH + 16}" font-size="11" font-family="Microsoft JhengHei, sans-serif" fill="${isBye2 ? '#ccc' : '#333'}">${escapeXml(p2Text)}</text>`;
+
+            // Match number
+            s += matchNumLabel(rx + roundW + 14, my + matchH / 2, matchNo, 11);
+
+            // Connector lines to next round
+            if (r < rounds - 1) {
+                const nextMi = Math.floor(mi / 2);
+                const nextSpacing = baseH / (nMatches / 2);
+                const nextY = 60 + nextMi * nextSpacing + nextSpacing / 2;
+                const lineStartX = rx + roundW + 26;
+                const nextRx = startX + (r + 1) * (roundW + gapRound);
+                s += `<line x1="${lineStartX}" y1="${my + matchH / 2}" x2="${nextRx}" y2="${nextY}" stroke="#999" stroke-width="1"/>`;
+            }
+
+            // Determine winner for next round (only BYE auto-advance)
+            let winner = null;
+            if (isBye1 && !isBye2) winner = match.p2;
+            else if (isBye2 && !isBye1) winner = match.p1;
+
+            if (mi % 2 === 0) {
+                nextSlots.push({ p1: winner, p2: null });
+            } else {
+                nextSlots[nextSlots.length - 1].p2 = winner;
+            }
+        });
+
+        currentSlots = nextSlots;
+    }
+
+    // Winner labels
+    const lastRx = startX + (rounds - 1) * (roundW + gapRound) + roundW + 30;
+    s += `<text x="${lastRx + 20}" y="${60 + baseH / 2 - 10}" text-anchor="start" font-size="13" font-weight="bold" fill="#d4a017" font-family="Microsoft JhengHei, sans-serif">冠</text>`;
+    s += `<text x="${lastRx + 20}" y="${60 + baseH / 2 + 10}" text-anchor="start" font-size="13" font-weight="bold" fill="#888" font-family="Microsoft JhengHei, sans-serif">亞</text>`;
+
+    return { svg: s, height: totalH };
+}
+
+// ============================================================
+// Utils
+// ============================================================
+function getAlignWidths(names) {
+    let sw = 0, nw = 0;
+    names.forEach(t => {
+        const i = t.lastIndexOf(' ');
+        if (i === -1) { nw = Math.max(nw, t.length); }
+        else { sw = Math.max(sw, i); nw = Math.max(nw, t.length - i - 1); }
+    });
+    return { sw, nw };
+}
+
+function alignName(text, sw, nw) {
+    const idx = text.lastIndexOf(' ');
+    const jfy = 'display:inline-block;text-align:justify;text-align-last:justify;';
+    if (idx === -1) {
+        return text.length < nw
+            ? '<span style="' + jfy + 'width:' + nw + 'em;">' + text + '</span>' : text;
+    }
+    const school = text.substring(0, idx);
+    const name = text.substring(idx + 1);
+    let sHtml = school.length < sw
+        ? '<span style="' + jfy + 'width:' + sw + 'em;">' + school + '</span>' : school;
+    let nHtml = name.length < nw
+        ? '<span style="' + jfy + 'width:' + nw + 'em;">' + name + '</span>' : name;
+    return sHtml + ' ' + nHtml;
+}
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+}
+
+// ============================================================
+// Download template Excel
+// ============================================================
+function downloadTemplate() {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: 3年級男單
+    const s1 = XLSX.utils.aoa_to_sheet([
+        ['學校', '姓名'],
+        ['北一女中', '王小明'],
+        ['建國中學', '李大華'],
+        ['師大附中', '陳志偉'],
+        ['中山女高', '林美玲'],
+        ['成功高中', '張家豪'],
+        ['景美女中', '黃雅琪'],
+    ]);
+    s1['!cols'] = [{ wch: 14 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, s1, '3男單');
+
+    // Sheet 2: 3年級女單
+    const s2 = XLSX.utils.aoa_to_sheet([
+        ['學校', '姓名'],
+        ['北一女中', '周小芬'],
+        ['中山女高', '吳佳穎'],
+        ['景美女中', '劉怡君'],
+        ['松山高中', '趙雅婷'],
+        ['大直高中', '鄭宜蓁'],
+    ]);
+    s2['!cols'] = [{ wch: 14 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, s2, '3女單');
+
+    // Sheet 3: 3年級男雙
+    const s3 = XLSX.utils.aoa_to_sheet([
+        ['學校', '選手1', '選手2'],
+        ['建國中學', '李大華', '陳志偉'],
+        ['成功高中', '張家豪', '王俊傑'],
+        ['師大附中', '林建宏', '許文彥'],
+        ['松山高中', '楊志明', '蔡宗翰'],
+    ]);
+    s3['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, s3, '3男雙');
+
+    // Sheet 4: 3年級混雙
+    const s4 = XLSX.utils.aoa_to_sheet([
+        ['學校', '選手1', '選手2'],
+        ['北一女中', '王小明', '周小芬'],
+        ['中山女高', '林美玲', '吳佳穎'],
+        ['師大附中', '陳志偉', '劉怡君'],
+    ]);
+    s4['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, s4, '3混雙');
+
+    XLSX.writeFile(wb, '羽球賽務匯入範本.xlsx');
+    showToast('範本已下載', 'success');
+}
+</script>
+</body>
+</html>
