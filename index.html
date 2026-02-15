@@ -1465,7 +1465,8 @@ function openMatchSheets(matches, title) {
             doc.write('<div class="sheet-subtitle">出賽單</div>');
             doc.write('<div class="sheet-info">');
             doc.write('<div class="left">');
-            doc.write('<div>日期 <span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span> 時間 <span class="blank-sm">&nbsp;</span>:<span class="blank-sm">&nbsp;</span></div>');
+            doc.write('<div>日期 <span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span></div>');
+            doc.write('<div>時間 <span class="blank-sm">&nbsp;</span>:<span class="blank-sm">&nbsp;</span></div>');
             doc.write('<div>組別 <b>' + escapeXml(m.category) + ' ' + m.matchNo + '</b></div>');
             doc.write('<div>場地 <span class="blank">&nbsp;</span></div>');
             doc.write('</div>');
