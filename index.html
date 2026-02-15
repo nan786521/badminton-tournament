@@ -879,9 +879,12 @@ function renderStandings(cat, gName) {
     if (!hasScore) { showToast('請先輸入比分', 'error'); return; }
 
     const voluntaryPlayers = new Set();
+    const injuryPlayers = new Set();
     group.matches.forEach(m => {
         if (getFF(m.matchId, 1) === 'voluntary') voluntaryPlayers.add(m.p1);
         if (getFF(m.matchId, 2) === 'voluntary') voluntaryPlayers.add(m.p2);
+        if (getFF(m.matchId, 1) === 'injury') injuryPlayers.add(m.p1);
+        if (getFF(m.matchId, 2) === 'injury') injuryPlayers.add(m.p2);
     });
 
     const ranked = Object.entries(scores).sort((a, b) => {
@@ -933,7 +936,8 @@ function renderStandings(cat, gName) {
         const isTied = tiedIndices.has(rank);
         const autoQualified = !hasTie && rank < nQualify;
         const isVoluntary = voluntaryPlayers.has(parseInt(idx));
-        let note = isVoluntary ? '<span style="color:#ea4335;font-weight:600;">棄</span>' : '';
+        const isInjury = injuryPlayers.has(parseInt(idx));
+        let note = isVoluntary ? '<span style="color:#ea4335;font-weight:600;">棄</span>' : (isInjury ? '<span style="color:#e67e00;font-weight:600;">傷</span>' : '');
         if (isTied) note += (note ? ' ' : '') + '<span style="color:#e67e00;font-weight:600;">平手</span>';
 
         let rowClass = '';
