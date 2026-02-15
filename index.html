@@ -246,6 +246,7 @@
         </div>
         <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
         <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
+        <button class="btn btn-light" onclick="generatePrelimSheets()">產生出賽單</button>
         <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
     </div>
     <div id="scoringArea">
@@ -276,6 +277,7 @@
             <button class="btn btn-primary" onclick="generateFinalsScoreTable()">產生對戰表</button>
             <button class="btn btn-success" onclick="generateBracket()">產生對戰圖</button>
             <button class="btn btn-danger" onclick="printFinalsBracketPDF()">列印對戰圖</button>
+            <button class="btn btn-light" onclick="generateFinalsSheets()">產生出賽單</button>
             <button class="btn btn-warning" onclick="exportFinalsExcel()">下載決賽 Excel</button>
         </div>
     </div>
@@ -1321,6 +1323,220 @@ function printFinalsBracketPDF() {
     doc.write('</scr' + 'ipt>');
     doc.write('</body></html>');
     doc.close();
+}
+
+// ============================================================
+// Match Sheets (出賽單)
+// ============================================================
+function splitDoubles(name) {
+    if (name.includes('/')) return name.split('/').map(s => s.trim());
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 3) return [parts[parts.length - 2], parts[parts.length - 1]];
+    if (parts.length === 2) return [parts[0], parts[1]];
+    return [name];
+}
+
+function generatePrelimSheets() {
+    if (Object.keys(state.activeGroups).length === 0) { showToast('尚無比賽資料', 'error'); return; }
+    const title = prompt('請輸入賽事名稱', '羽球錦標賽');
+    if (!title) return;
+
+    const matches = [];
+    for (const cat in state.activeGroups) {
+        const isDoubles = state.setupPool[cat] && state.setupPool[cat].type === '雙打';
+        state.activeGroups[cat].forEach(group => {
+            group.matches.forEach(m => {
+                const p1Name = group.members[m.p1];
+                const p2Name = group.members[m.p2];
+                matches.push({
+                    matchNo: m.matchNo,
+                    category: cat + ' ' + group.name + '組',
+                    p1: isDoubles ? splitDoubles(p1Name) : [p1Name],
+                    p2: isDoubles ? splitDoubles(p2Name) : [p2Name],
+                    isDoubles
+                });
+            });
+        });
+    }
+    openMatchSheets(matches, title);
+}
+
+function generateFinalsSheets() {
+    if (state.finalQualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
+    const title = prompt('請輸入賽事名稱', document.getElementById('finalTitle').value.trim() || '羽球錦標賽');
+    if (!title) return;
+
+    const players = state.finalQualifiers.map(q => q.name);
+    const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
+    while (players.length < size) players.push('—BYE—');
+    const rounds = Math.log2(size);
+    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+
+    let currentRound = [];
+    for (let i = 0; i < players.length; i += 2) currentRound.push([players[i], players[i + 1]]);
+
+    // Get global match number start
+    let matchNo = 1;
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(g => {
+            g.matches.forEach(m => { if (m.matchNo >= matchNo) matchNo = m.matchNo + 1; });
+        });
+    }
+
+    const matches = [];
+    for (let r = 0; r < rounds; r++) {
+        const rName = rounds - r <= roundNames.length ? roundNames[roundNames.length - (rounds - r)] : '第 ' + (r + 1) + ' 輪';
+        currentRound.forEach(([p1, p2]) => {
+            if (p1 === '—BYE—' || p2 === '—BYE—') {
+                // Auto advance BYE, still increment matchNo
+                matchNo++;
+                return;
+            }
+            matches.push({
+                matchNo: matchNo++,
+                category: '決賽 ' + rName,
+                p1: [p1],
+                p2: [p2],
+                isDoubles: false
+            });
+        });
+        const next = [];
+        for (let i = 0; i < currentRound.length; i += 2) {
+            const w1 = currentRound[i][0] === '—BYE—' ? currentRound[i][1] : (currentRound[i][1] === '—BYE—' ? currentRound[i][0] : '待定');
+            const w2 = (i + 1 < currentRound.length) ? (currentRound[i + 1][0] === '—BYE—' ? currentRound[i + 1][1] : (currentRound[i + 1][1] === '—BYE—' ? currentRound[i + 1][0] : '待定')) : '待定';
+            next.push([w1, w2]);
+        }
+        currentRound = next;
+    }
+    openMatchSheets(matches, title);
+}
+
+function openMatchSheets(matches, title) {
+    const win = window.open('', '_blank');
+    const doc = win.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>出賽單</title>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+    doc.write('<scr' + 'ipt src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></scr' + 'ipt>');
+    doc.write('<style>');
+    doc.write('* { box-sizing: border-box; margin: 0; padding: 0; }');
+    doc.write('body { font-family: "Microsoft JhengHei", "PMingLiU", sans-serif; }');
+    doc.write('.no-print { text-align: center; padding: 16px; }');
+    doc.write('.no-print button { padding: 10px 24px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; margin: 0 6px; font-weight: 600; }');
+    doc.write('.btn-print { background: #1a73e8; color: #fff; }');
+    doc.write('.btn-pdf { background: #ea4335; color: #fff; }');
+    doc.write('.sheet-page { width: 210mm; height: 297mm; margin: 0 auto; padding: 0; display: flex; flex-direction: column; }');
+    doc.write('.sheet { width: 100%; height: 148.5mm; padding: 8mm 15mm; border-bottom: 1px dashed #999; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }');
+    doc.write('.sheet:last-child { border-bottom: none; }');
+    doc.write('.sheet-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 2px; }');
+    doc.write('.sheet-subtitle { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 8px; letter-spacing: 6px; }');
+    doc.write('.sheet-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; line-height: 1.9; }');
+    doc.write('.sheet-info .left, .sheet-info .right { width: 48%; }');
+    doc.write('.sheet-info .blank { display: inline-block; border-bottom: 1px solid #333; min-width: 80px; }');
+    doc.write('.blank-sm { display: inline-block; border-bottom: 1px solid #333; min-width: 50px; }');
+    doc.write('.match-area { display: flex; align-items: center; justify-content: center; gap: 20px; margin: 8px 0; }');
+    doc.write('.player-box { border: 2px solid #333; min-width: 140px; }');
+    doc.write('.slot-row { display: flex; }');
+    doc.write('.slot-row + .slot-row { border-top: 1px solid #333; }');
+    doc.write('.slot-row .slot-left { padding: 6px 4px; min-height: 34px; min-width: 22px; border-right: 1px solid #333; }');
+    doc.write('.slot-row .slot-name { padding: 6px 16px; font-size: 15px; font-weight: bold; text-align: center; min-height: 34px; flex: 1; }');
+    doc.write('.score-area { text-align: center; }');
+    doc.write('.score-label { font-size: 13px; margin-bottom: 4px; }');
+    doc.write('.score-boxes { display: flex; align-items: center; gap: 6px; }');
+    doc.write('.score-box { width: 48px; height: 34px; border: 2px solid #333; }');
+    doc.write('.score-colon { font-size: 20px; font-weight: bold; }');
+    doc.write('.sheet-footer { font-size: 13px; display: flex; gap: 16px; }');
+    doc.write('.sheet-footer .f-item { flex: 1; }');
+    doc.write('.sheet-footer .f-line { display: inline-block; border-bottom: 1px solid #333; width: 75%; }');
+    doc.write('@media print { .no-print { display: none; } @page { margin: 0; size: A4; } .sheet-page { page-break-after: always; height: 297mm; } .sheet-page:last-child { page-break-after: auto; } }');
+    doc.write('</style></head><body>');
+    doc.write('<div class="no-print">');
+    doc.write('<button class="btn-print" onclick="window.print()">列印</button>');
+    doc.write('<button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button>');
+    doc.write('</div>');
+
+    // 2 sheets per page
+    for (let i = 0; i < matches.length; i += 2) {
+        doc.write('<div class="sheet-page">');
+        for (let j = i; j < Math.min(i + 2, matches.length); j++) {
+            const m = matches[j];
+            doc.write('<div class="sheet">');
+            doc.write('<div class="sheet-title">' + escapeXml(title) + '</div>');
+            doc.write('<div class="sheet-subtitle">出賽單</div>');
+            doc.write('<div class="sheet-info">');
+            doc.write('<div class="left">');
+            doc.write('<div>日期 <span class="blank">&nbsp;</span> 時間 <span class="blank">&nbsp;</span></div>');
+            doc.write('<div>組別 <b>' + escapeXml(m.category) + ' ' + m.matchNo + '</b></div>');
+            doc.write('<div>場地 <span class="blank">&nbsp;</span></div>');
+            doc.write('</div>');
+            doc.write('<div class="right">');
+            doc.write('<div>開始時間 <span class="blank">&nbsp;</span> 用球數 <span class="blank-sm">&nbsp;</span></div>');
+            doc.write('<div>結束時間 <span class="blank">&nbsp;</span></div>');
+            doc.write('<div>使用時間 <span class="blank">&nbsp;</span></div>');
+            doc.write('</div>');
+            doc.write('</div>');
+
+            // Match area
+            doc.write('<div class="match-area">');
+            // Left player box
+            doc.write('<div class="player-box">');
+            m.p1.forEach(name => {
+                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(name) + '</div></div>');
+            });
+            if (!m.isDoubles && m.p1.length === 1) {
+                // Singles: just 1 row, keep box consistent
+            }
+            doc.write('</div>');
+
+            // Score
+            doc.write('<div class="score-area"><div class="score-label">Score</div><div class="score-boxes"><div class="score-box"></div><span class="score-colon">:</span><div class="score-box"></div></div></div>');
+
+            // Right player box
+            doc.write('<div class="player-box">');
+            m.p2.forEach(name => {
+                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(name) + '</div><div class="slot-left"></div></div>');
+            });
+            doc.write('</div>');
+            doc.write('</div>');
+
+            // Footer
+            doc.write('<div class="sheet-footer">');
+            doc.write('<div class="f-item">勝方 <span class="f-line">&nbsp;</span></div>');
+            doc.write('<div class="f-item">裁判 <span class="f-line">&nbsp;</span></div>');
+            doc.write('<div class="f-item">裁判長 <span class="f-line">&nbsp;</span></div>');
+            doc.write('</div>');
+            doc.write('</div>');
+        }
+        doc.write('</div>');
+    }
+
+    // PDF download script
+    doc.write('<scr' + 'ipt>');
+    doc.write('function downloadPDF() {');
+    doc.write('  if (typeof jspdf === "undefined") { alert("PDF 元件載入中，請稍後再試"); return; }');
+    doc.write('  var pages = document.querySelectorAll(".sheet-page");');
+    doc.write('  var pdf = new jspdf.jsPDF({orientation:"portrait",unit:"mm",format:"a4",compress:true});');
+    doc.write('  var loaded = 0;');
+    doc.write('  var imgs = [];');
+    doc.write('  pages.forEach(function(page, idx) {');
+    doc.write('    html2canvas(page, { scale: 2, useCORS: true, backgroundColor: "#fff" }).then(function(canvas) {');
+    doc.write('      imgs[idx] = canvas.toDataURL("image/jpeg", 0.8);');
+    doc.write('      loaded++;');
+    doc.write('      if (loaded === pages.length) buildPdf(imgs);');
+    doc.write('    });');
+    doc.write('  });');
+    doc.write('  function buildPdf(imgs) {');
+    doc.write('    for (var i = 0; i < imgs.length; i++) {');
+    doc.write('      if (i > 0) pdf.addPage();');
+    doc.write('      pdf.addImage(imgs[i], "JPEG", 0, 0, 210, 297, undefined, "FAST");');
+    doc.write('    }');
+    doc.write('    pdf.save("出賽單.pdf");');
+    doc.write('  }');
+    doc.write('}');
+    doc.write('</scr' + 'ipt>');
+    doc.write('</body></html>');
+    doc.close();
+    showToast('已產生 ' + matches.length + ' 張出賽單', 'success');
 }
 
 // ============================================================
