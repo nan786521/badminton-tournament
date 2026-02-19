@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.9</title>
+    <title>羽球賽務系統 v19.10</title>
     <meta name="theme-color" content="#1a73e8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -38,9 +38,10 @@
         body { font-family: "Microsoft JhengHei", "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
 
         /* Header */
-        .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); flex-wrap: wrap; }
         .header h1 { font-size: 22px; font-weight: 700; }
         .header span { font-size: 13px; opacity: 0.8; }
+        .header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
         /* Event title inline edit */
         .event-title-input { font-size: 20px; font-weight: 700; font-family: inherit; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.4); color: #fff; padding: 4px 10px; border-radius: 6px; width: 280px; }
@@ -84,6 +85,8 @@
         .btn-warning { background: #f9ab00; color: #333; }
         .btn-danger { background: #ea4335; color: #fff; }
         .btn-light { background: var(--btn-light-bg); color: var(--btn-light-text); }
+        [data-theme="dark"] .btn-warning { background: #e09600; color: #fff; }
+        [data-theme="dark"] .toast.warning { background: #e09600; color: #fff; }
         .btn-lg { padding: 14px 28px; font-size: 16px; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
@@ -115,13 +118,19 @@
         .player-name.right { text-align: left; }
         .score-input { width: 70px !important; flex-shrink: 0; text-align: center; font-weight: 700; font-size: 16px; padding: 6px 4px; background: var(--score-input-bg); color: var(--text); border: 1.5px solid var(--border-input); border-radius: 6px; }
         .vs-label { font-weight: 700; color: var(--text-placeholder); font-size: 13px; flex-shrink: 0; }
-        .ff-badge { display: inline-block; font-size: 15px; font-weight: 700; min-width: 26px; height: 22px; line-height: 22px; text-align: center; border-radius: 3px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 3px; padding: 0 3px; }
+        .ff-badge { display: inline-block; font-size: 13px; font-weight: 700; min-width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 4px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 2px; padding: 0 4px; position: relative; }
+        .ff-badge::before { content: ''; position: absolute; top: -6px; bottom: -6px; left: -6px; right: -6px; }
         .ff-badge[data-ff=""] { color: var(--text-placeholder); opacity: 0.5; border: 1px dashed var(--border-input); }
         .ff-badge[data-ff="injury"] { background: #fff3e0; color: #e67e00; border: 1px solid #e67e00; opacity: 1; }
         .ff-badge[data-ff="voluntary"] { background: #fde8e8; color: #ea4335; border: 1px solid #ea4335; opacity: 1; }
         .match-row.has-forfeit .player-name.forfeited-injury { color: #e67e00; }
         .match-row.has-forfeit .player-name.forfeited-voluntary { text-decoration: line-through; color: var(--text-placeholder); }
         .match-row.has-forfeit .score-input.forfeited-voluntary { opacity: 0.4; }
+        /* H5: Hide number spinner */
+        .score-input::-webkit-outer-spin-button, .score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .score-input { -moz-appearance: textfield; }
+        .bracket-score::-webkit-outer-spin-button, .bracket-score::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .bracket-score { -moz-appearance: textfield; }
 
         /* Control bar */
         .control-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px; background: var(--bg-card); border-radius: 10px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); align-items: center; }
@@ -153,7 +162,8 @@
         [data-theme="dark"] .overview-table th { background: var(--table-header-bg); }
 
         /* Bracket (single elimination) */
-        .bracket { overflow-x: auto; padding: 20px 0; }
+        .bracket { overflow-x: auto; padding: 20px 0; position: relative; }
+        .bracket::after { content: '← 滑動查看 →'; position: sticky; right: 0; bottom: 0; display: block; text-align: center; font-size: 12px; color: var(--text-placeholder); padding: 4px; opacity: 0.7; pointer-events: none; }
         .bracket-round { display: inline-flex; flex-direction: column; justify-content: center; gap: 20px; vertical-align: top; margin-right: 40px; min-width: 220px; }
         .bracket-round h4 { text-align: center; color: var(--text-hint); margin-bottom: 8px; font-size: 13px; }
         .bracket-match { background: var(--bg-card); border: 1.5px solid var(--border-input); border-radius: 8px; overflow: hidden; position: relative; }
@@ -212,7 +222,7 @@
         .standings-table tr.qualified { background: var(--qualified-bg); }
         .standings-table tr.qualified td:first-child::before { content: ''; margin-right: 4px; }
         .standings-table tr.tied { background: #fff8e1; }
-        [data-theme="dark"] .standings-table tr.tied { background: #3a3520; }
+        [data-theme="dark"] .standings-table tr.tied { background: #4a4520; border-left: 3px solid #e67e00; }
         .tie-warn { color: #e67e00; font-weight: 600; font-size: 13px; margin: 8px 0; }
         .tie-check { width: 16px; height: 16px; cursor: pointer; accent-color: #1a73e8; }
 
@@ -267,6 +277,11 @@
             /* Action bar → 2-col grid */
             .action-bar { gap: 6px; }
             .action-bar .btn { flex: 1 1 calc(50% - 3px); font-size: 13px; padding: 10px 6px; }
+
+            /* M4: Progress detail collapse on mobile */
+            .progress-detail { font-size: 12px; max-height: 60px; overflow: hidden; position: relative; }
+            .progress-detail.expanded { max-height: none; }
+            .progress-toggle { display: block; text-align: center; font-size: 12px; color: #1a73e8; cursor: pointer; padding: 4px; }
 
             /* Match row */
             .match-row { gap: 6px; padding: 10px 0; }
@@ -339,25 +354,27 @@
 <body>
 
 <div class="header">
-    <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統</h1>
+    <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統 <span style="font-size:14px;opacity:0.6;font-weight:400;">&#9998;</span></h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.9</span>
-    <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
-    <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
-    <button class="theme-toggle" onclick="toggleTheme()">
-        <span class="icon" id="themeIcon">&#9790;</span>
-        <span id="themeLabel">Dark</span>
-    </button>
+    <span id="versionLabel">v19.10</span>
+    <div class="header-right">
+        <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
+        <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span class="icon" id="themeIcon">&#9790;</span>
+            <span id="themeLabel">Dark</span>
+        </button>
+    </div>
 </div>
 
 <div class="tabs" role="tablist">
-    <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-setup" onclick="switchTab('setup')">1. 名單設定</button>
-    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-scoring" onclick="switchTab('scoring')">2. 預賽計分</button>
-    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-finals" onclick="switchTab('finals')">3. 決賽</button>
+    <button class="tab-btn active" id="btn-setup" role="tab" aria-selected="true" aria-controls="tab-setup" tabindex="0" onclick="switchTab('setup')">1. 名單設定</button>
+    <button class="tab-btn" id="btn-scoring" role="tab" aria-selected="false" aria-controls="tab-scoring" tabindex="-1" onclick="switchTab('scoring')">2. 預賽計分</button>
+    <button class="tab-btn" id="btn-finals" role="tab" aria-selected="false" aria-controls="tab-finals" tabindex="-1" onclick="switchTab('finals')">3. 決賽</button>
 </div>
 
 <!-- Tab 1: Setup -->
-<div id="tab-setup" class="tab-content active" role="tabpanel">
+<div id="tab-setup" class="tab-content active" role="tabpanel" aria-labelledby="btn-setup">
     <div class="setup-layout">
         <div>
             <div class="card">
@@ -371,7 +388,7 @@
                     </div>
                     <button class="btn btn-light" onclick="downloadTemplate()">下載範本</button>
                 </div>
-                <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
+                <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--border);">
                 <div style="margin-bottom: 12px;">
                     <label>類別名稱（例：3男單）</label>
                     <input type="text" id="catName" placeholder="輸入類別名稱">
@@ -393,7 +410,7 @@
                 <ul class="pool-list" id="poolList">
                     <li class="empty-state" id="poolEmpty">
                         <div class="icon">&#127992;</div>
-                        <p>尚無任何名單，請從左側新增</p>
+                        <p>尚無任何名單，請先新增</p>
                     </li>
                 </ul>
                 <div class="action-bar" id="poolActions" style="display:none;">
@@ -410,13 +427,10 @@
 </div>
 
 <!-- Tab 2: Scoring -->
-<div id="tab-scoring" class="tab-content" role="tabpanel">
+<div id="tab-scoring" class="tab-content" role="tabpanel" aria-labelledby="btn-scoring">
     <div class="control-bar">
         <span class="title">預賽控制台</span>
         <span id="saveIndicator" style="font-size:12px;color:var(--text-hint);"></span>
-        <div class="ctrl-primary">
-            <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
-        </div>
         <div class="ctrl-group">
             <button class="btn btn-light" id="undoBtn" onclick="undo()" disabled title="復原 (Ctrl+Z)">&#x21A9;&#xFE0E; 復原</button>
             <button class="btn btn-light" id="redoBtn" onclick="redo()" disabled title="重做 (Ctrl+Y)">&#x21AA;&#xFE0E; 重做</button>
@@ -429,10 +443,13 @@
         </div>
         <div class="ctrl-group">
             <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
-            <button class="btn btn-danger" onclick="generateFullReport()">綜合報表</button>
+            <button class="btn btn-light" onclick="generateFullReport()">綜合報表</button>
             <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
-            <button class="btn btn-light" onclick="generatePrelimSheets()">產生出賽單</button>
+            <button class="btn btn-light" onclick="generatePrelimSheets()">出賽單</button>
             <button class="btn btn-light" onclick="captureScreenshot('scoringArea')">截圖</button>
+        </div>
+        <div class="ctrl-primary">
+            <button class="btn btn-primary" id="promoteBtn" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
         </div>
     </div>
     <div id="progressPanel" class="progress-panel" style="display:none">
@@ -452,7 +469,7 @@
 </div>
 
 <!-- Tab 3: Finals -->
-<div id="tab-finals" class="tab-content" role="tabpanel">
+<div id="tab-finals" class="tab-content" role="tabpanel" aria-labelledby="btn-finals">
     <!-- Category tab bar -->
     <div id="finalsCategoryBar" class="finals-cat-bar" style="display:none;"></div>
 
@@ -478,14 +495,19 @@
                 </li>
             </ul>
             <div class="action-bar" style="margin-top: 12px;">
-                <button class="btn btn-light" onclick="shuffleFinals()">手動抽籤</button>
-                <button class="btn btn-primary" onclick="generateFinalsScoreTable()">產生對戰表</button>
+                <button class="btn btn-light" onclick="shuffleFinals()">抽籤</button>
                 <button class="btn btn-success" onclick="generateBracket()">產生對戰圖</button>
-                <button class="btn btn-danger" onclick="printFinalsBracketPDF()">列印對戰圖</button>
-                <button class="btn btn-light" onclick="generateFinalsSheets()">產生出賽單</button>
-                <button class="btn btn-warning" onclick="exportFinalsExcel()">下載決賽 Excel</button>
-                <button class="btn btn-light" onclick="captureScreenshot('bracketArea')">截圖</button>
+                <button class="btn btn-primary" onclick="generateFinalsScoreTable()">對戰表</button>
             </div>
+            <details style="margin-top: 8px;">
+                <summary style="cursor:pointer;font-size:13px;color:var(--text-muted);font-weight:600;padding:6px 0;">匯出工具 ▾</summary>
+                <div class="action-bar" style="margin-top: 6px;">
+                    <button class="btn btn-danger" onclick="printFinalsBracketPDF()">列印對戰圖</button>
+                    <button class="btn btn-light" onclick="generateFinalsSheets()">出賽單</button>
+                    <button class="btn btn-warning" onclick="exportFinalsExcel()">下載 Excel</button>
+                    <button class="btn btn-light" onclick="captureScreenshot('bracketArea')">截圖</button>
+                </div>
+            </details>
         </div>
         <div id="finalsScoreArea"></div>
         <div id="bracketArea"></div>
@@ -520,7 +542,7 @@ function toggleTheme() {
 function updateThemeUI() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     document.getElementById('themeIcon').innerHTML = isDark ? '&#9788;' : '&#9790;';
-    document.getElementById('themeLabel').textContent = isDark ? 'Light' : 'Dark';
+    document.getElementById('themeLabel').textContent = isDark ? '淺色' : '深色';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -540,6 +562,32 @@ function closeModal() {
     const overlay = document.getElementById('modalOverlay');
     overlay.style.display = 'none';
     overlay.innerHTML = '';
+}
+
+// M9: Escape key closes modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const overlay = document.getElementById('modalOverlay');
+        if (overlay && overlay.style.display !== 'none') closeModal();
+    }
+});
+
+// M3: Custom confirm dialog (replaces native confirm)
+function customConfirm(message) {
+    return new Promise(resolve => {
+        const overlay = document.getElementById('modalOverlay');
+        overlay.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true">
+            <p style="font-size:15px;margin-bottom:20px;line-height:1.6;">${message}</p>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-light" id="confirmNo">取消</button>
+                <button class="btn btn-danger" id="confirmYes">確定</button>
+            </div>
+        </div>`;
+        overlay.style.display = 'flex';
+        document.getElementById('confirmYes').focus();
+        document.getElementById('confirmYes').onclick = () => { closeModal(); resolve(true); };
+        document.getElementById('confirmNo').onclick = () => { closeModal(); resolve(false); };
+    });
 }
 
 // ============================================================
@@ -680,7 +728,7 @@ function createNewEvent() {
     // Reset UI
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = '羽球賽務系統';
-    document.title = '羽球賽務系統 v19.9';
+    document.title = '羽球賽務系統 v19.10';
     const ft = document.getElementById('finalTitle');
     if (ft) ft.value = '';
     refreshPoolList();
@@ -704,9 +752,9 @@ function createNewEvent() {
     showToast('已建立新賽事', 'success');
 }
 
-function deleteEvent(eventId) {
+async function deleteEvent(eventId) {
     if (eventId === state.eventId) { showToast('無法刪除目前進行中的賽事', 'error'); return; }
-    if (!confirm('確定要刪除此賽事？此操作無法復原。')) return;
+    if (!await customConfirm('確定要刪除此賽事？此操作無法復原。')) return;
     localStorage.removeItem('badminton_event_' + eventId);
     const list = getEventList().filter(e => e.id !== eventId);
     saveEventList(list);
@@ -768,7 +816,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.9';
+    document.title = (val || '羽球賽務系統') + ' v19.10';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -1118,7 +1166,7 @@ function loadState() {
         state.eventTitle = saved.eventTitle || '';
         const h1 = document.getElementById('eventTitle');
         if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.9';
+        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.10';
 
         // Rebuild UI
         refreshPoolList();
@@ -1167,9 +1215,9 @@ function rebuildScoringUI(savedScores) {
                 row.innerHTML = `
                     <span class="match-no">${m.matchNo}</span>
                     <span class="player-name" id="pn1_${m.matchId}">${alignName(group.members[m.p1], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${m.matchId}" data-ff="${ff1Val}" onclick="cycleForfeit('${m.matchId}',1)" title="點擊切換：傷/棄">${ffLabel[ff1Val] || '棄'}</span></span>
-                    <input type="number" class="score-input" id="s1_${m.matchId}" min="0" placeholder="-" value="${s1Val}">
+                    <input type="number" class="score-input" id="s1_${m.matchId}" min="0" max="99" placeholder="-" value="${s1Val}">
                     <span class="vs-label">VS</span>
-                    <input type="number" class="score-input" id="s2_${m.matchId}" min="0" placeholder="-" value="${s2Val}">
+                    <input type="number" class="score-input" id="s2_${m.matchId}" min="0" max="99" placeholder="-" value="${s2Val}">
                     <span class="player-name right" id="pn2_${m.matchId}"><span class="ff-badge" id="ff2_${m.matchId}" data-ff="${ff2Val}" onclick="cycleForfeit('${m.matchId}',2)" title="點擊切換：傷/棄">${ffLabel[ff2Val] || '棄'}</span>${alignName(group.members[m.p2], aw.sw, aw.nw)}</span>
                 `;
                 groupCard.appendChild(row);
@@ -1182,7 +1230,7 @@ function rebuildScoringUI(savedScores) {
             groupCard.appendChild(standingsDiv);
 
             const btnCalc = document.createElement('button');
-            btnCalc.className = 'btn btn-light';
+            btnCalc.className = 'btn btn-primary';
             btnCalc.style.marginTop = '8px';
             btnCalc.textContent = '計算戰績';
             btnCalc.onclick = () => renderStandings(cat, group.name);
@@ -1318,6 +1366,9 @@ function _updateProgressNow() {
     document.getElementById('progressBarText').textContent = totalDone + ' / ' + totalMatches + '（' + pct + '%）';
     document.getElementById('progressDetail').className = 'progress-detail';
     document.getElementById('progressDetail').innerHTML = details.join('');
+    // M8: Disable promote button when no scores
+    const promoteBtn = document.getElementById('promoteBtn');
+    if (promoteBtn) promoteBtn.disabled = totalDone === 0;
 }
 
 // Auto-save scores on input/change (event delegation)
@@ -1371,9 +1422,10 @@ window.addEventListener('beforeunload', function() {
 const TAB_ORDER = ['setup', 'scoring', 'finals'];
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => {
-        const isActive = b.textContent.includes(tab === 'setup' ? '名單' : tab === 'scoring' ? '預賽' : '決賽');
+        const isActive = b.getAttribute('aria-controls') === 'tab-' + tab;
         b.classList.toggle('active', isActive);
         b.setAttribute('aria-selected', isActive);
+        b.setAttribute('tabindex', isActive ? '0' : '-1');
     });
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
@@ -1439,7 +1491,7 @@ function refreshPoolList() {
         empty = document.createElement('li');
         empty.id = 'poolEmpty';
         empty.className = 'empty-state';
-        empty.innerHTML = '<div class="icon">&#127992;</div><p>尚無任何名單，請從左側新增</p>';
+        empty.innerHTML = '<div class="icon">&#127992;</div><p>尚無任何名單，請先新增</p>';
         list.appendChild(empty);
     }
 
@@ -1458,6 +1510,11 @@ function refreshPoolList() {
         list.appendChild(li);
     });
     actions.style.display = 'flex';
+    // M2: Disable load/delete when nothing selected
+    const loadBtn = actions.querySelector('.btn-light');
+    const delBtn = actions.querySelector('.btn-danger');
+    if (loadBtn) loadBtn.disabled = !state.selectedPoolItem;
+    if (delBtn) delBtn.disabled = !state.selectedPoolItem;
 }
 
 function loadPoolItem() {
@@ -1471,9 +1528,9 @@ function loadPoolItem() {
     showToast(`正在編輯「${cat}」`, 'info');
 }
 
-function deletePoolItem() {
+async function deletePoolItem() {
     if (!state.selectedPoolItem) return;
-    if (!confirm('確定要刪除此名單？')) return;
+    if (!await customConfirm('確定要刪除此名單？')) return;
     delete state.setupPool[state.selectedPoolItem];
     state.selectedPoolItem = null;
     refreshPoolList();
@@ -1481,8 +1538,8 @@ function deletePoolItem() {
     showToast('已刪除', 'success');
 }
 
-function clearAllPool() {
-    if (!confirm('確定要清空所有名單？')) return;
+async function clearAllPool() {
+    if (!await customConfirm('確定要清空所有名單？')) return;
     state.setupPool = {};
     state.selectedPoolItem = null;
     state.editingKey = null;
@@ -1529,11 +1586,11 @@ function importExcel(event) {
 // ============================================================
 // Tab 2: Smart grouping + scoring
 // ============================================================
-function startTournament() {
+async function startTournament() {
     const keys = Object.keys(state.setupPool);
     if (keys.length === 0) { showToast('暫存池為空', 'error'); return; }
     if (Object.keys(state.activeGroups).length > 0) {
-        if (!confirm('重新分組會覆蓋目前的預賽資料，確定繼續？')) return;
+        if (!await customConfirm('重新分組會覆蓋目前的預賽資料，確定繼續？')) return;
     }
     pushUndo();
 
@@ -1604,9 +1661,9 @@ function startTournament() {
                 row.innerHTML = `
                     <span class="match-no">${matchNo}</span>
                     <span class="player-name" id="pn1_${matchId}">${alignName(members[i], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',1)" title="點擊切換：傷/棄">棄</span></span>
-                    <input type="number" class="score-input" id="s1_${matchId}" min="0" placeholder="-">
+                    <input type="number" class="score-input" id="s1_${matchId}" min="0" max="99" placeholder="-">
                     <span class="vs-label">VS</span>
-                    <input type="number" class="score-input" id="s2_${matchId}" min="0" placeholder="-">
+                    <input type="number" class="score-input" id="s2_${matchId}" min="0" max="99" placeholder="-">
                     <span class="player-name right" id="pn2_${matchId}"><span class="ff-badge" id="ff2_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',2)" title="點擊切換：傷/棄">棄</span>${alignName(members[j], aw.sw, aw.nw)}</span>
                 `;
                 groupCard.appendChild(row);
@@ -1620,7 +1677,7 @@ function startTournament() {
             groupCard.appendChild(standingsDiv);
 
             const btnCalc = document.createElement('button');
-            btnCalc.className = 'btn btn-light';
+            btnCalc.className = 'btn btn-primary';
             btnCalc.style.marginTop = '8px';
             btnCalc.textContent = '計算戰績';
             btnCalc.onclick = () => renderStandings(cat, gName);
@@ -2003,10 +2060,10 @@ function renderFinalsList() {
     });
 }
 
-function shuffleFinals() {
+async function shuffleFinals() {
     const qualifiers = getCurrentFinalQualifiers();
-    if (qualifiers.length === 0) return;
-    if (!confirm('重新抽籤將打亂目前順序，確定繼續？')) return;
+    if (qualifiers.length === 0) { showToast('尚無晉級者', 'error'); return; }
+    if (!await customConfirm('重新抽籤將打亂目前順序，確定繼續？')) return;
     pushUndo();
     shuffle(qualifiers);
     renderFinalsList();
@@ -2014,12 +2071,12 @@ function shuffleFinals() {
     showToast('已重新抽籤', 'success');
 }
 
-function generateBracket() {
+async function generateBracket() {
     const qualifiers = getCurrentFinalQualifiers();
     if (qualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
     const currentBracket = getCurrentBracketMatches();
     if (currentBracket && currentBracket.length > 0) {
-        if (!confirm('重新產生對戰圖會覆蓋目前的決賽資料，確定繼續？')) return;
+        if (!await customConfirm('重新產生對戰圖會覆蓋目前的決賽資料，確定繼續？')) return;
     }
     pushUndo();
 
@@ -2637,9 +2694,9 @@ function generateFinalsScoreTable() {
             row.innerHTML =
                 '<span class="match-no">' + (mi + 1) + '</span>' +
                 '<span class="player-name" id="pn1_' + m.id + '">' + p1Display + ffBadge1 + '</span>' +
-                '<input type="number" class="score-input" id="s1_' + m.id + '" min="0" placeholder="-"' + disabled1 + '>' +
+                '<input type="number" class="score-input" id="s1_' + m.id + '" min="0" max="99" placeholder="-"' + disabled1 + '>' +
                 '<span class="vs-label">VS</span>' +
-                '<input type="number" class="score-input" id="s2_' + m.id + '" min="0" placeholder="-"' + disabled2 + '>' +
+                '<input type="number" class="score-input" id="s2_' + m.id + '" min="0" max="99" placeholder="-"' + disabled2 + '>' +
                 '<span class="player-name right" id="pn2_' + m.id + '">' + ffBadge2 + p2Display + '</span>';
             section.appendChild(row);
         });
@@ -3009,11 +3066,11 @@ function saveToExcel() {
     showToast('存檔成功', 'success');
 }
 
-function loadFromExcel(event) {
+async function loadFromExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
     if (Object.keys(state.activeGroups).length > 0 || Object.keys(state.setupPool).length > 0) {
-        if (!confirm('載入存檔將覆蓋目前所有資料，確定要繼續嗎？')) { event.target.value = ''; return; }
+        if (!await customConfirm('載入存檔將覆蓋目前所有資料，確定要繼續嗎？')) { event.target.value = ''; return; }
     }
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -3039,7 +3096,7 @@ function loadFromExcel(event) {
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.9';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.10';
             state.selectedPoolItem = null;
             state.editingKey = null;
             undoStack.length = 0;
