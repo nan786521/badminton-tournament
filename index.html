@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.15';</script>
+    <script>const APP_VERSION = 'v19.16';</script>
 </head>
 <body>
 
@@ -1951,10 +1951,45 @@ function promoteWinners() {
     state.bracketMatches = {};
 
     // Auto-generate bracket for categories with exactly 2 qualifiers
+    // If both come from the same 2-person group, auto-fill prelim scores & confirm winner
     let autoBracketCount = 0;
+    let autoCompleteCount = 0;
     for (const cat in allWinners) {
         if (allWinners[cat].length === 2) {
-            state.bracketMatches[cat] = buildBracketMatches(allWinners[cat]);
+            const bracketMatches = buildBracketMatches(allWinners[cat]);
+
+            // Try to carry prelim scores: check if both qualifiers are from the same group
+            const g1 = allWinners[cat][0].label.replace(/組.*$/, '');
+            const g2 = allWinners[cat][1].label.replace(/組.*$/, '');
+            if (g1 === g2) {
+                const group = state.activeGroups[cat].find(g => g.name === g1);
+                if (group && group.members.length === 2 && group.matches.length === 1) {
+                    const pm = group.matches[0];
+                    const { n1, n2 } = getMatchScores(pm.matchId);
+                    const f1 = getFF(pm.matchId, 1);
+                    const f2 = getFF(pm.matchId, 2);
+                    const hasScores = (!isNaN(n1) && !isNaN(n2) && n1 !== n2) || f1 || f2;
+                    if (hasScores) {
+                        const bm = bracketMatches[0]; // single bracket match
+                        const prelimP1Name = group.members[pm.p1];
+                        // Map prelim player order to bracket player order
+                        if (bm.p1 === prelimP1Name) {
+                            bm.s1 = String(isNaN(n1) ? 0 : n1);
+                            bm.s2 = String(isNaN(n2) ? 0 : n2);
+                        } else {
+                            bm.s1 = String(isNaN(n2) ? 0 : n2);
+                            bm.s2 = String(isNaN(n1) ? 0 : n1);
+                        }
+                        const bs1 = parseInt(bm.s1), bs2 = parseInt(bm.s2);
+                        if (bs1 !== bs2) {
+                            bm.winner = bs1 > bs2 ? bm.p1 : bm.p2;
+                            autoCompleteCount++;
+                        }
+                    }
+                }
+            }
+
+            state.bracketMatches[cat] = bracketMatches;
             autoBracketCount++;
         }
     }
@@ -1967,7 +2002,8 @@ function promoteWinners() {
     saveState();
     const catCount = Object.keys(allWinners).length;
     let msg = `${totalCount} 位選手晉級決賽（${catCount} 個組別）`;
-    if (autoBracketCount > 0) msg += `，${autoBracketCount} 組已自動產生對戰圖`;
+    if (autoCompleteCount > 0) msg += `，${autoCompleteCount} 組已自動完賽`;
+    else if (autoBracketCount > 0) msg += `，${autoBracketCount} 組已自動產生對戰圖`;
     showToast(msg, 'success');
 }
 
