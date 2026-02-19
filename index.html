@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.24';</script>
+    <script>const APP_VERSION = 'v19.25';</script>
 </head>
 <body>
 
@@ -2466,6 +2466,15 @@ function printResultAnnouncement() {
     const today = new Date();
     const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
 
+    const isDoubles = state.activeCategory && state.setupPool[state.activeCategory] && state.setupPool[state.activeCategory].type === '雙打';
+    // Format doubles name: "學校 選手A 選手B" → "學校 選手A<br>學校 選手B"
+    const fmtName = (name) => {
+        if (!isDoubles || !name) return escapeXml(name || '');
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 3) return escapeXml(parts[0] + ' ' + parts[1]) + '<br>' + escapeXml(parts[0] + ' ' + parts.slice(2).join(' '));
+        return escapeXml(name);
+    };
+
     // Collect all match results for the detail table
     const currentMatches = getCurrentBracketMatches() || [];
     const matches = currentMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
@@ -2540,14 +2549,14 @@ function printResultAnnouncement() {
 
     // Podium
     doc.write('<div class="podium">');
-    doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + escapeXml(result.runnerUp) + '</div></div>');
-    doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + escapeXml(result.champion) + '</div></div>');
+    doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + fmtName(result.runnerUp) + '</div></div>');
+    doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + fmtName(result.champion) + '</div></div>');
     if (result.bronzes.length > 0) {
-        doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + escapeXml(result.bronzes.join('、')) + '</div></div>');
+        doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + result.bronzes.map(b => fmtName(b)).join('、') + '</div></div>');
     }
     doc.write('</div>');
     if (result.fourth) {
-        doc.write('<div style="text-align:center;"><div class="podium-4th">殿軍：<strong>' + escapeXml(result.fourth) + '</strong></div></div>');
+        doc.write('<div style="text-align:center;"><div class="podium-4th">殿軍：<strong>' + fmtName(result.fourth) + '</strong></div></div>');
     }
 
     // Match details table
@@ -2572,10 +2581,10 @@ function printResultAnnouncement() {
             const s = m.s1 && m.s2 ? m.s1 + ' : ' + m.s2 : '-';
             doc.write('<tr>');
             doc.write('<td>' + matchNum + '</td>');
-            doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p1) + '</td>');
+            doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + fmtName(m.p1) + '</td>');
             doc.write('<td class="score-cell">' + s + '</td>');
-            doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p2) + '</td>');
-            doc.write('<td class="winner-cell">' + escapeXml(w) + '</td>');
+            doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + fmtName(m.p2) + '</td>');
+            doc.write('<td class="winner-cell">' + fmtName(w) + '</td>');
             doc.write('</tr>');
             matchNum++;
         });
@@ -2700,17 +2709,24 @@ function _writeReportFinalsSection(doc) {
     cats.forEach(cat => {
         const bracketResult = getBracketResultsForCategory(cat);
         if (!bracketResult) return;
+        const isDoubles = state.setupPool[cat] && state.setupPool[cat].type === '雙打';
+        const fmtName = (name) => {
+            if (!isDoubles || !name) return escapeXml(name || '');
+            const parts = name.trim().split(/\s+/);
+            if (parts.length >= 3) return escapeXml(parts[0] + ' ' + parts[1]) + '<br>' + escapeXml(parts[0] + ' ' + parts.slice(2).join(' '));
+            return escapeXml(name);
+        };
         doc.write('<div class="section"><h2>' + escapeXml(cat) + ' 決賽成績</h2>');
         // Podium
         doc.write('<div class="podium">');
-        doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + escapeXml(bracketResult.champion) + '</div></div>');
-        doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + escapeXml(bracketResult.runnerUp) + '</div></div>');
+        doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + fmtName(bracketResult.champion) + '</div></div>');
+        doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + fmtName(bracketResult.runnerUp) + '</div></div>');
         if (bracketResult.bronzes.length > 0) {
-            doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + escapeXml(bracketResult.bronzes.join('、')) + '</div></div>');
+            doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + bracketResult.bronzes.map(b => fmtName(b)).join('、') + '</div></div>');
         }
         doc.write('</div>');
         if (bracketResult.fourth) {
-            doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">殿軍：<strong>' + escapeXml(bracketResult.fourth) + '</strong></span></div>');
+            doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">殿軍：<strong>' + fmtName(bracketResult.fourth) + '</strong></span></div>');
         }
         // Match details
         const catMatches = state.bracketMatches[cat] || [];
@@ -2730,10 +2746,10 @@ function _writeReportFinalsSection(doc) {
                 const w = m.winner;
                 const s = m.s1 && m.s2 ? m.s1 + ' : ' + m.s2 : '-';
                 doc.write('<tr><td>' + matchNum + '</td>');
-                doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p1) + '</td>');
+                doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + fmtName(m.p1) + '</td>');
                 doc.write('<td class="score-cell">' + s + '</td>');
-                doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p2) + '</td>');
-                doc.write('<td class="winner-cell">' + escapeXml(w) + '</td></tr>');
+                doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + fmtName(m.p2) + '</td>');
+                doc.write('<td class="winner-cell">' + fmtName(w) + '</td></tr>');
                 matchNum++;
             });
             doc.write('</table>');
