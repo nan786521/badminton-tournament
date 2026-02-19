@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.12</title>
+    <title>羽球賽務系統 v19.13</title>
     <meta name="theme-color" content="#1a73e8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -356,7 +356,7 @@
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統 <span style="font-size:14px;opacity:0.6;font-weight:400;">&#9998;</span></h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.12</span>
+    <span id="versionLabel">v19.13</span>
     <div class="header-right">
         <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
         <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
@@ -723,7 +723,7 @@ function createNewEvent() {
     // Reset UI
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = '羽球賽務系統';
-    document.title = '羽球賽務系統 v19.12';
+    document.title = '羽球賽務系統 v19.13';
     const ft = document.getElementById('finalTitle');
     if (ft) ft.value = '';
     refreshPoolList();
@@ -811,7 +811,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.12';
+    document.title = (val || '羽球賽務系統') + ' v19.13';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -951,7 +951,7 @@ function getBracketResultsForCategory(cat) {
         bronzes = [bronze];
     } else {
         const semiFinals = normalMatches.filter(m => m.round === maxRound - 1);
-        bronzes = semiFinals.map(m => m.winner ? (m.winner === m.p1 ? m.p2 : m.p1) : null).filter(Boolean);
+        bronzes = semiFinals.map(m => m.winner ? (m.winner === m.p1 ? m.p2 : m.p1) : null).filter(n => n && n !== '—BYE—' && n !== '—TBD—');
     }
     return { champion, runnerUp, bronzes, bronze, fourth, finalMatch, thirdMatch };
 }
@@ -1161,7 +1161,7 @@ function loadState() {
         state.eventTitle = saved.eventTitle || '';
         const h1 = document.getElementById('eventTitle');
         if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.12';
+        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.13';
 
         // Rebuild UI
         refreshPoolList();
@@ -3103,7 +3103,7 @@ async function loadFromExcel(event) {
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.12';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.13';
             state.selectedPoolItem = null;
             state.editingKey = null;
             undoStack.length = 0;
