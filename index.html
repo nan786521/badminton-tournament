@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.11</title>
+    <title>羽球賽務系統 v19.12</title>
     <meta name="theme-color" content="#1a73e8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -356,7 +356,7 @@
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統 <span style="font-size:14px;opacity:0.6;font-weight:400;">&#9998;</span></h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.11</span>
+    <span id="versionLabel">v19.12</span>
     <div class="header-right">
         <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
         <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
@@ -494,20 +494,15 @@
                     <p>尚無晉級者，請先在預賽計分中結算冠軍</p>
                 </li>
             </ul>
-            <div class="action-bar" style="margin-top: 12px;">
+            <div class="action-bar" style="margin-top: 12px; flex-wrap: wrap;">
                 <button class="btn btn-light" onclick="shuffleFinals()">抽籤</button>
                 <button class="btn btn-success" onclick="generateBracket()">產生對戰圖</button>
                 <button class="btn btn-primary" onclick="generateFinalsScoreTable()">對戰表</button>
+                <button class="btn btn-danger" onclick="printFinalsBracketPDF()">列印對戰圖</button>
+                <button class="btn btn-light" onclick="generateFinalsSheets()">出賽單</button>
+                <button class="btn btn-warning" onclick="exportFinalsExcel()">下載 Excel</button>
+                <button class="btn btn-light" onclick="captureScreenshot('bracketArea')">截圖</button>
             </div>
-            <details style="margin-top: 8px;">
-                <summary style="cursor:pointer;font-size:13px;color:var(--text-muted);font-weight:600;padding:6px 0;">匯出工具 ▾</summary>
-                <div class="action-bar" style="margin-top: 6px;">
-                    <button class="btn btn-danger" onclick="printFinalsBracketPDF()">列印對戰圖</button>
-                    <button class="btn btn-light" onclick="generateFinalsSheets()">出賽單</button>
-                    <button class="btn btn-warning" onclick="exportFinalsExcel()">下載 Excel</button>
-                    <button class="btn btn-light" onclick="captureScreenshot('bracketArea')">截圖</button>
-                </div>
-            </details>
         </div>
         <div id="finalsScoreArea"></div>
         <div id="bracketArea"></div>
@@ -728,7 +723,7 @@ function createNewEvent() {
     // Reset UI
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = '羽球賽務系統';
-    document.title = '羽球賽務系統 v19.11';
+    document.title = '羽球賽務系統 v19.12';
     const ft = document.getElementById('finalTitle');
     if (ft) ft.value = '';
     refreshPoolList();
@@ -816,7 +811,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.11';
+    document.title = (val || '羽球賽務系統') + ' v19.12';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -1166,7 +1161,7 @@ function loadState() {
         state.eventTitle = saved.eventTitle || '';
         const h1 = document.getElementById('eventTitle');
         if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.11';
+        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.12';
 
         // Rebuild UI
         refreshPoolList();
@@ -3108,7 +3103,7 @@ async function loadFromExcel(event) {
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.11';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.12';
             state.selectedPoolItem = null;
             state.editingKey = null;
             undoStack.length = 0;
