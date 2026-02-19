@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.3</title>
+    <title>羽球賽務系統 v19.4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -155,12 +155,22 @@
         .medal-name { font-size: 16px; font-weight: 700; }
         .result-print-btn { margin-top: 16px; }
 
+        /* Progress panel */
+        .progress-panel { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .progress-summary { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 8px; }
+        .progress-bar-outer { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+        .progress-bar-inner { height: 100%; background: linear-gradient(90deg, #1a73e8, #34a853); border-radius: 4px; transition: width 0.4s ease; width: 0; }
+        .progress-detail { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--text-secondary); }
+        .progress-group { display: inline-flex; align-items: center; gap: 4px; }
+        .progress-group.done { color: var(--qualified-text); font-weight: 600; }
+
         /* Toast */
         .toast { position: fixed; top: max(20px, env(safe-area-inset-top)); right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 1000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; max-width: calc(100vw - 40px); }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.success { background: #34a853; }
         .toast.error { background: #ea4335; }
         .toast.info { background: #1a73e8; }
+        .toast.warning { background: #f9ab00; color: #333; }
 
         /* File input */
         .file-input-wrapper { position: relative; }
@@ -267,7 +277,7 @@
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統</h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.3</span>
+    <span id="versionLabel">v19.4</span>
     <button class="theme-toggle" onclick="toggleTheme()">
         <span class="icon" id="themeIcon">&#9790;</span>
         <span id="themeLabel">Dark</span>
@@ -350,6 +360,14 @@
         <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
         <button class="btn btn-light" onclick="generatePrelimSheets()">產生出賽單</button>
         <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
+    </div>
+    <div id="progressPanel" class="progress-panel" style="display:none">
+        <div class="progress-summary">
+            <span>整體進度：<strong id="progressPct">0%</strong></span>
+            <span>已完成 <strong id="progressDone">0</strong> / <strong id="progressTotal">0</strong> 場</span>
+        </div>
+        <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+        <div id="progressDetail"></div>
     </div>
     <div id="scoringArea">
         <div class="empty-state">
@@ -445,7 +463,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.3';
+    document.title = (val || '羽球賽務系統') + ' v19.4';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -562,6 +580,24 @@ function updateUndoButtons() {
 document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
     if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+
+    // Enter key: jump to next score input
+    if (e.key === 'Enter' && (e.target.classList.contains('score-input') || e.target.classList.contains('bracket-score'))) {
+        e.preventDefault();
+        const cls = e.target.classList.contains('score-input') ? '.score-input' : '.bracket-score';
+        const allInputs = Array.from(document.querySelectorAll(cls));
+        const idx = allInputs.indexOf(e.target);
+        if (idx >= 0 && idx < allInputs.length - 1) {
+            allInputs[idx + 1].focus();
+        }
+    }
+});
+
+// Auto-select on focus for quick overwrite
+document.addEventListener('focusin', function(e) {
+    if (e.target.classList.contains('score-input') || e.target.classList.contains('bracket-score')) {
+        setTimeout(() => e.target.select(), 0);
+    }
 });
 
 // ============================================================
@@ -606,7 +642,7 @@ function loadState() {
             state.eventTitle = saved.eventTitle;
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = saved.eventTitle;
-            document.title = saved.eventTitle + ' v19.3';
+            document.title = saved.eventTitle + ' v19.4';
         }
 
         // Rebuild UI
@@ -679,6 +715,7 @@ function rebuildScoringUI(savedScores) {
             area.appendChild(groupCard);
         });
     }
+    setTimeout(updateProgress, 0);
 }
 
 // Get forfeit value from badge
@@ -703,6 +740,7 @@ function cycleForfeit(matchId, side) {
     const next = cur === '' ? 'injury' : (cur === 'injury' ? 'voluntary' : '');
     setFF(matchId, side, next);
     onForfeit(matchId, false);
+    updateProgress();
 }
 
 function onForfeit(matchId, silent) {
@@ -762,18 +800,87 @@ function cascadeVoluntaryForfeit(matchId, side1, side2) {
     }
 }
 
+// ============================================================
+// Progress Panel
+// ============================================================
+function updateProgress() {
+    const panel = document.getElementById('progressPanel');
+    if (!panel) return;
+    if (Object.keys(state.activeGroups).length === 0) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+
+    let totalDone = 0, totalMatches = 0;
+    const details = [];
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(g => {
+            let gDone = 0, gTotal = g.matches.length;
+            g.matches.forEach(m => {
+                const s1 = document.getElementById('s1_' + m.matchId);
+                const s2 = document.getElementById('s2_' + m.matchId);
+                const f1 = getFF(m.matchId, 1);
+                const f2 = getFF(m.matchId, 2);
+                const v1 = s1 ? s1.value : '';
+                const v2 = s2 ? s2.value : '';
+                // A match is complete if both scores filled OR any forfeit
+                if ((v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2)) || f1 || f2) gDone++;
+            });
+            totalDone += gDone;
+            totalMatches += gTotal;
+            const isDone = gDone === gTotal;
+            details.push(`<span class="progress-group ${isDone ? 'done' : ''}">${cat} ${g.name}：${gDone}/${gTotal}${isDone ? ' ✓' : ''}</span>`);
+        });
+    }
+
+    const pct = totalMatches > 0 ? Math.round(totalDone / totalMatches * 100) : 0;
+    document.getElementById('progressPct').textContent = pct + '%';
+    document.getElementById('progressDone').textContent = totalDone;
+    document.getElementById('progressTotal').textContent = totalMatches;
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressDetail').className = 'progress-detail';
+    document.getElementById('progressDetail').innerHTML = details.join('');
+}
+
 // Auto-save scores on input/change (event delegation)
 let _undoDebounce = null;
 document.addEventListener('input', function(e) {
-    if (e.target.classList.contains('score-input')) {
-        if (!_undoDebounce) pushUndo();
-        clearTimeout(_undoDebounce);
-        _undoDebounce = setTimeout(() => { _undoDebounce = null; }, 1000);
+    const isScore = e.target.classList.contains('score-input');
+    const isBracket = e.target.classList.contains('bracket-score');
+    if (isScore || isBracket) {
+        // Validate: no negative scores
+        if (e.target.value !== '' && parseFloat(e.target.value) < 0) {
+            e.target.value = 0;
+            showToast('分數不可為負數', 'error');
+        }
+        if (isScore) {
+            if (!_undoDebounce) pushUndo();
+            clearTimeout(_undoDebounce);
+            _undoDebounce = setTimeout(() => { _undoDebounce = null; }, 1000);
+        }
         saveState();
+        if (isScore) updateProgress();
     }
 });
 document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('score-input')) saveState();
+    const isScore = e.target.classList.contains('score-input');
+    const isBracket = e.target.classList.contains('bracket-score');
+    if (isScore || isBracket) {
+        // Validate negative on change too
+        if (e.target.value !== '' && parseFloat(e.target.value) < 0) {
+            e.target.value = 0;
+            showToast('分數不可為負數', 'error');
+        }
+        // Warn both-zero for prelim
+        if (isScore) {
+            const id = e.target.id;
+            const matchId = id.replace(/^s[12]_/, '');
+            const s1 = document.getElementById('s1_' + matchId);
+            const s2 = document.getElementById('s2_' + matchId);
+            if (s1 && s2 && s1.value === '0' && s2.value === '0') {
+                showToast('提醒：雙方分數皆為 0', 'warning');
+            }
+        }
+        saveState();
+    }
 });
 // Safety net: save before page unload
 window.addEventListener('beforeunload', function() {
@@ -1030,6 +1137,7 @@ function startTournament() {
 
     switchTab('scoring');
     saveState();
+    updateProgress();
     if (report.length) showToast(report.join(' | '), 'info');
 }
 
@@ -1390,10 +1498,43 @@ function generateBracket() {
         currentRound = next;
     }
 
+    // Add 3rd place match if there are semi-finals (≥4 real players)
+    const realPlayers = state.finalQualifiers.length;
+    if (realPlayers >= 4 && rounds >= 2) {
+        const maxRound = rounds - 1; // final round index
+        matches.push({ id: 'fb_3rd', round: maxRound, matchIdx: -1, p1: '—TBD—', p2: '—TBD—', s1: '', s2: '', winner: null, isThirdPlace: true });
+    }
+
     state.bracketMatches = matches;
     saveState();
     renderInteractiveBracket();
     showToast('已產生互動式對戰圖', 'success');
+}
+
+function renderBracketMatchHtml(m) {
+    const b1 = m.p1 === '—BYE—', b2 = m.p2 === '—BYE—';
+    const tbd1 = m.p1 === '—TBD—', tbd2 = m.p2 === '—TBD—';
+    const hasReal = !b1 && !b2 && !tbd1 && !tbd2;
+
+    const p1Display = b1 ? '<span style="color:var(--text-placeholder)">輪空</span>' : (tbd1 ? '<span style="color:var(--text-placeholder)">待定</span>' : m.p1);
+    const p2Display = b2 ? '<span style="color:var(--text-placeholder)">輪空</span>' : (tbd2 ? '<span style="color:var(--text-placeholder)">待定</span>' : m.p2);
+
+    const w1 = m.winner === m.p1 && !b1 && !tbd1;
+    const w2 = m.winner === m.p2 && !b2 && !tbd2;
+
+    const p1Short = !b1 && !tbd1 ? m.p1.replace(/.*\s/, '') : '';
+    const p2Short = !b2 && !tbd2 ? m.p2.replace(/.*\s/, '') : '';
+    const scoreInput1 = hasReal ? `<input type="number" class="bracket-score" id="bs1_${m.id}" value="${m.s1}" min="0" placeholder="${p1Short}" title="${m.p1} 的分數" oninput="onBracketScore('${m.id}')">` : '';
+    const scoreInput2 = hasReal ? `<input type="number" class="bracket-score" id="bs2_${m.id}" value="${m.s2}" min="0" placeholder="${p2Short}" title="${m.p2} 的分數" oninput="onBracketScore('${m.id}')">` : '';
+
+    const confirmDisabled = !hasReal || tbd1 || tbd2 ? ' disabled' : '';
+    const confirmLabel = m.winner ? '✓ ' + m.winner : '確認勝者';
+
+    return `
+        <div class="bracket-slot ${w1 ? 'winner' : ''}"><span class="bracket-player-name">${p1Display}</span>${scoreInput1}</div>
+        <div class="bracket-slot ${w2 ? 'winner' : ''}"><span class="bracket-player-name">${p2Display}</span>${scoreInput2}</div>
+        <button class="bracket-confirm" onclick="confirmBracketWinner('${m.id}')"${confirmDisabled}${m.winner ? ' style="background:var(--qualified-bg);color:var(--qualified-text)"' : ''}>${confirmLabel}</button>
+    `;
 }
 
 function renderInteractiveBracket() {
@@ -1413,7 +1554,11 @@ function renderInteractiveBracket() {
     bracketContainer.style.display = 'flex';
     bracketContainer.style.alignItems = 'center';
 
-    const rounds = Math.max(...matches.map(m => m.round)) + 1;
+    // Exclude 3rd place match from normal bracket
+    const normalMatches = matches.filter(m => !m.isThirdPlace);
+    const thirdMatch = matches.find(m => m.isThirdPlace);
+
+    const rounds = normalMatches.length > 0 ? Math.max(...normalMatches.map(m => m.round)) + 1 : 0;
     const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
 
     for (let r = 0; r < rounds; r++) {
@@ -1422,33 +1567,11 @@ function renderInteractiveBracket() {
         const roundName = rounds - r <= roundNames.length ? roundNames[roundNames.length - (rounds - r)] : `第 ${r + 1} 輪`;
         roundDiv.innerHTML = `<h4>${roundName}</h4>`;
 
-        const rMatches = matches.filter(m => m.round === r);
+        const rMatches = normalMatches.filter(m => m.round === r);
         rMatches.forEach(m => {
             const matchDiv = document.createElement('div');
             matchDiv.className = 'bracket-match';
-            const b1 = m.p1 === '—BYE—', b2 = m.p2 === '—BYE—';
-            const tbd1 = m.p1 === '—TBD—', tbd2 = m.p2 === '—TBD—';
-            const hasReal = !b1 && !b2 && !tbd1 && !tbd2;
-
-            const p1Display = b1 ? '<span style="color:var(--text-placeholder)">輪空</span>' : (tbd1 ? '<span style="color:var(--text-placeholder)">待定</span>' : m.p1);
-            const p2Display = b2 ? '<span style="color:var(--text-placeholder)">輪空</span>' : (tbd2 ? '<span style="color:var(--text-placeholder)">待定</span>' : m.p2);
-
-            const w1 = m.winner === m.p1 && !b1 && !tbd1;
-            const w2 = m.winner === m.p2 && !b2 && !tbd2;
-
-            const p1Short = !b1 && !tbd1 ? m.p1.replace(/.*\s/, '') : '';
-            const p2Short = !b2 && !tbd2 ? m.p2.replace(/.*\s/, '') : '';
-            const scoreInput1 = hasReal ? `<input type="number" class="bracket-score" id="bs1_${m.id}" value="${m.s1}" min="0" placeholder="${p1Short}" title="${m.p1} 的分數" oninput="onBracketScore('${m.id}')">` : '';
-            const scoreInput2 = hasReal ? `<input type="number" class="bracket-score" id="bs2_${m.id}" value="${m.s2}" min="0" placeholder="${p2Short}" title="${m.p2} 的分數" oninput="onBracketScore('${m.id}')">` : '';
-
-            const confirmDisabled = !hasReal || tbd1 || tbd2 ? ' disabled' : '';
-            const confirmLabel = m.winner ? '✓ ' + m.winner : '確認勝者';
-
-            matchDiv.innerHTML = `
-                <div class="bracket-slot ${w1 ? 'winner' : ''}"><span class="bracket-player-name">${p1Display}</span>${scoreInput1}</div>
-                <div class="bracket-slot ${w2 ? 'winner' : ''}"><span class="bracket-player-name">${p2Display}</span>${scoreInput2}</div>
-                <button class="bracket-confirm" onclick="confirmBracketWinner('${m.id}')"${confirmDisabled}${m.winner ? ' style="background:var(--qualified-bg);color:var(--qualified-text)"' : ''}>${confirmLabel}</button>
-            `;
+            matchDiv.innerHTML = renderBracketMatchHtml(m);
             roundDiv.appendChild(matchDiv);
         });
 
@@ -1456,6 +1579,19 @@ function renderInteractiveBracket() {
     }
 
     card.appendChild(bracketContainer);
+
+    // 3rd place match section
+    if (thirdMatch) {
+        const thirdSection = document.createElement('div');
+        thirdSection.style.cssText = 'margin-top: 16px; padding-top: 16px; border-top: 2px dashed var(--border);';
+        thirdSection.innerHTML = '<h4 style="color: #ef6c00; margin-bottom: 10px; font-size: 15px;">🥉 季軍賽</h4>';
+        const matchDiv = document.createElement('div');
+        matchDiv.className = 'bracket-match';
+        matchDiv.style.maxWidth = '280px';
+        matchDiv.innerHTML = renderBracketMatchHtml(thirdMatch);
+        thirdSection.appendChild(matchDiv);
+        card.appendChild(thirdSection);
+    }
 
     // Result card
     const resultDiv = document.createElement('div');
@@ -1484,20 +1620,36 @@ function confirmBracketWinner(matchId) {
 
     const s1 = parseInt(m.s1), s2 = parseInt(m.s2);
     if (isNaN(s1) || isNaN(s2)) { showToast('請先輸入雙方分數', 'error'); return; }
+    if (s1 < 0 || s2 < 0) { showToast('分數不可為負數', 'error'); return; }
     if (s1 === s2) { showToast('分數相同，無法判定勝者', 'error'); return; }
 
     const winner = s1 > s2 ? m.p1 : m.p2;
     const loser = s1 > s2 ? m.p2 : m.p1;
     m.winner = winner;
 
-    // Advance winner to next round
-    const nextRound = m.round + 1;
-    const nextMatchIdx = Math.floor(m.matchIdx / 2);
-    const nextSlot = m.matchIdx % 2; // 0 = p1, 1 = p2
-    const nextMatch = matches.find(x => x.round === nextRound && x.matchIdx === nextMatchIdx);
-    if (nextMatch) {
-        if (nextSlot === 0) nextMatch.p1 = winner;
-        else nextMatch.p2 = winner;
+    // Skip advancing for 3rd place match
+    if (!m.isThirdPlace) {
+        // Advance winner to next round
+        const nextRound = m.round + 1;
+        const nextMatchIdx = Math.floor(m.matchIdx / 2);
+        const nextSlot = m.matchIdx % 2; // 0 = p1, 1 = p2
+        const nextMatch = matches.find(x => x.round === nextRound && x.matchIdx === nextMatchIdx && !x.isThirdPlace);
+        if (nextMatch) {
+            if (nextSlot === 0) nextMatch.p1 = winner;
+            else nextMatch.p2 = winner;
+        }
+
+        // Route semi-final losers to 3rd place match
+        const thirdMatch = matches.find(x => x.isThirdPlace);
+        if (thirdMatch) {
+            const maxRound = Math.max(...matches.filter(x => !x.isThirdPlace).map(x => x.round));
+            const semiRound = maxRound - 1;
+            if (m.round === semiRound) {
+                // First semi-final loser → p1, second → p2
+                if (m.matchIdx === 0) thirdMatch.p1 = loser;
+                else if (m.matchIdx === 1) thirdMatch.p2 = loser;
+            }
+        }
     }
 
     saveState();
@@ -1509,16 +1661,28 @@ function getBracketResults() {
     const matches = state.bracketMatches;
     if (!matches || matches.length === 0) return null;
 
-    const maxRound = Math.max(...matches.map(m => m.round));
-    const finalMatch = matches.find(m => m.round === maxRound);
+    const normalMatches = matches.filter(m => !m.isThirdPlace);
+    const maxRound = Math.max(...normalMatches.map(m => m.round));
+    const finalMatch = normalMatches.find(m => m.round === maxRound);
     if (!finalMatch || !finalMatch.winner) return null;
 
     const champion = finalMatch.winner;
     const runnerUp = finalMatch.winner === finalMatch.p1 ? finalMatch.p2 : finalMatch.p1;
-    const semiFinals = matches.filter(m => m.round === maxRound - 1);
-    const bronzes = semiFinals.map(m => m.winner ? (m.winner === m.p1 ? m.p2 : m.p1) : null).filter(Boolean);
 
-    return { champion, runnerUp, bronzes, finalMatch };
+    // Check for 3rd place match
+    const thirdMatch = matches.find(m => m.isThirdPlace);
+    let bronze = null, fourth = null, bronzes = [];
+    if (thirdMatch && thirdMatch.winner) {
+        bronze = thirdMatch.winner;
+        fourth = thirdMatch.winner === thirdMatch.p1 ? thirdMatch.p2 : thirdMatch.p1;
+        bronzes = [bronze];
+    } else {
+        // Fallback: parallel bronzes from semi-finals
+        const semiFinals = normalMatches.filter(m => m.round === maxRound - 1);
+        bronzes = semiFinals.map(m => m.winner ? (m.winner === m.p1 ? m.p2 : m.p1) : null).filter(Boolean);
+    }
+
+    return { champion, runnerUp, bronzes, bronze, fourth, finalMatch, thirdMatch };
 }
 
 function renderBracketResult() {
@@ -1539,6 +1703,9 @@ function renderBracketResult() {
     if (result.bronzes.length > 0) {
         html += `<div class="medal-item bronze"><div class="medal-label">🥉 季軍</div><div class="medal-name">${result.bronzes.join('、')}</div></div>`;
     }
+    if (result.fourth) {
+        html += `<div class="medal-item" style="background:var(--bg-card);border:1.5px solid var(--border);"><div class="medal-label">第四名</div><div class="medal-name">${result.fourth}</div></div>`;
+    }
     html += '</div>';
     html += '<div class="result-print-btn"><button class="btn btn-danger" onclick="printResultAnnouncement()">列印 / 下載成績公告</button></div>';
 
@@ -1557,7 +1724,8 @@ function printResultAnnouncement() {
 
     // Collect all match results for the detail table
     const matches = state.bracketMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
-    const rounds = Math.max(...state.bracketMatches.map(m => m.round)) + 1;
+    const normalBracket = state.bracketMatches.filter(m => !m.isThirdPlace);
+    const rounds = normalBracket.length > 0 ? Math.max(...normalBracket.map(m => m.round)) + 1 : 0;
     const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
 
     const win = window.open('', '_blank');
@@ -1587,6 +1755,8 @@ function printResultAnnouncement() {
     doc.write('.podium-item.gold { background: linear-gradient(180deg, #fff8e1, #ffe082); border: 2px solid #f9ab00; order: 2; transform: scale(1.1); }');
     doc.write('.podium-item.silver { background: linear-gradient(180deg, #fafafa, #e0e0e0); border: 2px solid #9e9e9e; order: 1; }');
     doc.write('.podium-item.bronze { background: linear-gradient(180deg, #fff3e0, #ffcc80); border: 2px solid #ef6c00; order: 3; }');
+    doc.write('.podium-fourth { text-align: center; margin: 16px auto 0; padding: 10px 20px; border: 1px solid #ddd; border-radius: 6px; display: inline-block; font-size: 14px; color: #555; }');
+    doc.write('.podium-fourth strong { font-size: 16px; color: #333; }');
     doc.write('.podium-rank { font-size: 28px; margin-bottom: 4px; }');
     doc.write('.podium-label { font-size: 13px; color: #555; font-weight: 600; margin-bottom: 4px; }');
     doc.write('.podium-name { font-size: 20px; font-weight: 900; }');
@@ -1629,6 +1799,9 @@ function printResultAnnouncement() {
         doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + escapeXml(result.bronzes.join('、')) + '</div></div>');
     }
     doc.write('</div>');
+    if (result.fourth) {
+        doc.write('<div style="text-align:center;"><div class="podium-fourth">第四名：<strong>' + escapeXml(result.fourth) + '</strong></div></div>');
+    }
 
     // Match details table
     if (matches.length > 0) {
@@ -1639,8 +1812,11 @@ function printResultAnnouncement() {
 
         let lastRound = -1;
         let matchNum = 1;
+        let shown3rd = false;
         matches.forEach(m => {
-            if (m.round !== lastRound) {
+            if (m.isThirdPlace) {
+                if (!shown3rd) { doc.write('<tr class="round-header"><td colspan="5">季軍賽</td></tr>'); shown3rd = true; }
+            } else if (m.round !== lastRound) {
                 lastRound = m.round;
                 const rn = rounds - m.round <= roundNames.length ? roundNames[roundNames.length - (rounds - m.round)] : '第 ' + (m.round + 1) + ' 輪';
                 doc.write('<tr class="round-header"><td colspan="5">' + rn + '</td></tr>');
@@ -2153,7 +2329,7 @@ function loadFromExcel(event) {
                 state.eventTitle = saved.eventTitle;
                 const h1 = document.getElementById('eventTitle');
                 if (h1) h1.textContent = saved.eventTitle;
-                document.title = saved.eventTitle + ' v19.3';
+                document.title = saved.eventTitle + ' v19.4';
             }
             state.selectedPoolItem = null;
             state.editingKey = null;
