@@ -1726,6 +1726,7 @@ function renderStandings(cat, gName) {
 
     const groupKey = `${cat}_${gName}`;
     if (!state.manualQualify) state.manualQualify = {};
+    delete state.manualQualify[groupKey];
 
     const div = document.getElementById(`standings_${cat}_${gName}`);
     const aw = getAlignWidths(group.members);
@@ -2631,13 +2632,15 @@ function generateFinalsScoreTable() {
             const p2Display = m.bye2 ? '<span style="color:var(--text-placeholder)">輪空</span>' : alignName(m.p2, aw.sw, aw.nw);
             const disabled1 = m.bye1 ? ' disabled' : '';
             const disabled2 = m.bye2 ? ' disabled' : '';
+            const ffBadge1 = m.bye1 ? '' : '<span class="ff-badge" id="ff1_' + m.id + '" data-ff="" onclick="cycleForfeit(\'' + m.id + '\',1)" title="點擊切換：傷/棄">棄</span>';
+            const ffBadge2 = m.bye2 ? '' : '<span class="ff-badge" id="ff2_' + m.id + '" data-ff="" onclick="cycleForfeit(\'' + m.id + '\',2)" title="點擊切換：傷/棄">棄</span>';
             row.innerHTML =
                 '<span class="match-no">' + (mi + 1) + '</span>' +
-                '<span class="player-name">' + p1Display + '</span>' +
-                '<input type="number" class="score-input" id="fs1_' + m.id + '" min="0" placeholder="-"' + disabled1 + '>' +
+                '<span class="player-name" id="pn1_' + m.id + '">' + p1Display + ffBadge1 + '</span>' +
+                '<input type="number" class="score-input" id="s1_' + m.id + '" min="0" placeholder="-"' + disabled1 + '>' +
                 '<span class="vs-label">VS</span>' +
-                '<input type="number" class="score-input" id="fs2_' + m.id + '" min="0" placeholder="-"' + disabled2 + '>' +
-                '<span class="player-name right">' + p2Display + '</span>';
+                '<input type="number" class="score-input" id="s2_' + m.id + '" min="0" placeholder="-"' + disabled2 + '>' +
+                '<span class="player-name right" id="pn2_' + m.id + '">' + ffBadge2 + p2Display + '</span>';
             section.appendChild(row);
         });
 
