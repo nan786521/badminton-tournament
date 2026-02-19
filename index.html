@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.23';</script>
+    <script>const APP_VERSION = 'v19.24';</script>
 </head>
 <body>
 
@@ -2885,7 +2885,8 @@ function printFinalsBracketPDF() {
 
     const catPrefix = state.activeCategory ? state.activeCategory + ' ' : '';
     const title = catPrefix + (document.getElementById('finalTitle').value.trim() || '決賽對戰圖');
-    const br = buildBracketSVG(qualifiers, 800);
+    const isDoubles = state.activeCategory && state.setupPool[state.activeCategory] && state.setupPool[state.activeCategory].type === '雙打';
+    const br = buildBracketSVG(qualifiers, 800, isDoubles);
     const svgW = br.width || 800;
 
     // Build full SVG with title header
@@ -2901,7 +2902,6 @@ function printFinalsBracketPDF() {
     doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeXml(title) + '</title>');
     doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
     doc.write('<style>');
-    doc.write('@media print { body { margin: 0; } .no-print { display: none; } }');
     doc.write('body { font-family: "Microsoft JhengHei", sans-serif; background: #fff; margin: 20px; }');
     doc.write('.no-print { text-align: center; margin-bottom: 16px; }');
     doc.write('.no-print button, .no-print select { padding: 8px 16px; font-size: 14px; border-radius: 6px; cursor: pointer; margin: 0 4px; font-weight: 600; vertical-align: middle; }');
@@ -2909,6 +2909,7 @@ function printFinalsBracketPDF() {
     doc.write('.btn-print { background: #1a73e8; color: #fff; border: none; }');
     doc.write('.btn-pdf { background: #ea4335; color: #fff; border: none; }');
     doc.write('svg { display: block; margin: 0 auto; max-width: 100%; }');
+    doc.write('@media print { body { margin: 0; } .no-print { display: none; } }');
     doc.write('</style>');
     doc.write('<style id="orientStyle">@media print { @page { margin: 8mm; size: landscape; } svg { max-height: 190mm; width: auto; height: auto; } }</style>');
     doc.write('</head><body>');
@@ -2947,7 +2948,7 @@ function printFinalsBracketPDF() {
     doc.write('    var m=8, uw=pw-m*2, uh=ph-m*2;');
     doc.write('    var r = Math.min(uw/img.width, uh/img.height);');
     doc.write('    var imgW = img.width*r, imgH = img.height*r;');
-    doc.write('    if (imgH > uh) {');
+    doc.write('    if (imgH > uh + 1) {');
     doc.write('      var pages = Math.ceil(imgH / uh);');
     doc.write('      for (var p = 0; p < pages; p++) {');
     doc.write('        if (p > 0) pdf.addPage("a4",orient);');
@@ -3762,7 +3763,7 @@ function drawLineGroup(ox, oy, w, h, cat, group) {
 }
 
 // ---- Single Elimination Bracket SVG ----
-function buildBracketSVG(qualifiers, totalWidth) {
+function buildBracketSVG(qualifiers, totalWidth, isDoubles) {
     const realP = qualifiers.map(q => q.name);
     const n = realP.length;
     const size = Math.pow(2, Math.ceil(Math.log2(n)));
@@ -3772,7 +3773,9 @@ function buildBracketSVG(qualifiers, totalWidth) {
 
     const rounds = Math.log2(size);
     // Dynamic matchH: shrink for large brackets so it fits A4 page
-    const matchH = Math.max(26, Math.min(50, Math.floor(1100 / size)));
+    // Doubles need taller slots to show 2 player names per slot
+    const baseMatchH = Math.max(26, Math.min(50, Math.floor(1100 / size)));
+    const matchH = isDoubles ? Math.max(44, Math.floor(baseMatchH * 1.6)) : baseMatchH;
     const slotH = Math.max(12, Math.floor(matchH * 0.44));
     const fontSize = matchH >= 40 ? 11 : matchH >= 30 ? 10 : 9;
     const roundW = 180, gapRound = 60;
@@ -3833,11 +3836,30 @@ function buildBracketSVG(qualifiers, totalWidth) {
             s += `<rect x="${rx}" y="${my}" width="${roundW}" height="${matchH}" rx="4" fill="white" stroke="#999" stroke-width="1"/>`;
             s += `<line x1="${rx}" y1="${my + slotH}" x2="${rx + roundW}" y2="${my + slotH}" stroke="#ddd"/>`;
 
-            // Player names
+            // Player names — doubles show 2 lines per slot
             const textY1 = my + Math.floor(slotH * 0.72);
             const textY2 = my + slotH + Math.floor(slotH * 0.72);
-            s += `<text x="${rx + 8}" y="${textY1}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="${isBye1 ? '#ccc' : '#333'}">${escapeXml(p1Text)}</text>`;
-            s += `<text x="${rx + 8}" y="${textY2}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="${isBye2 ? '#ccc' : '#333'}">${escapeXml(p2Text)}</text>`;
+            if (isDoubles) {
+                const lineH = Math.max(10, Math.floor(slotH * 0.45));
+                const renderDoubles = (text, yBase, isBye) => {
+                    if (isBye) {
+                        s += `<text x="${rx + 8}" y="${yBase}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="#ccc">輪空</text>`;
+                        return;
+                    }
+                    const parts = text.trim().split(/\s+/);
+                    if (parts.length >= 3) {
+                        s += `<text x="${rx + 8}" y="${yBase - Math.floor(lineH * 0.3)}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="#333">${escapeXml(parts[0])} ${escapeXml(parts[1])}</text>`;
+                        s += `<text x="${rx + 8}" y="${yBase + Math.floor(lineH * 0.7)}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="#333">${escapeXml(parts[0])} ${escapeXml(parts.slice(2).join(' '))}</text>`;
+                    } else {
+                        s += `<text x="${rx + 8}" y="${yBase}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="#333">${escapeXml(text)}</text>`;
+                    }
+                };
+                renderDoubles(p1Text, textY1, isBye1);
+                renderDoubles(p2Text, textY2, isBye2);
+            } else {
+                s += `<text x="${rx + 8}" y="${textY1}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="${isBye1 ? '#ccc' : '#333'}">${escapeXml(p1Text)}</text>`;
+                s += `<text x="${rx + 8}" y="${textY2}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="${isBye2 ? '#ccc' : '#333'}">${escapeXml(p2Text)}</text>`;
+            }
 
             // Match number
             s += matchNumLabel(rx + roundW + 14, my + matchH / 2, matchNo, fontSize);
