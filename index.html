@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.18';</script>
+    <script>const APP_VERSION = 'v19.19';</script>
 </head>
 <body>
 
@@ -1946,21 +1946,25 @@ function promoteWinners() {
     let totalCount = 0;
     for (const cat in state.activeGroups) {
         const groups = state.activeGroups[cat];
+        if (!allWinners[cat]) allWinners[cat] = [];
         groups.forEach(g => {
             const qs = getGroupQualifiers(cat, g);
             if (qs.length === 0) return;
-            // Each group gets its own finals bracket: "高女單 A組"
-            const finalsKey = groups.length === 1 ? cat : `${cat} ${g.name}組`;
-            const groupWinners = qs.map((name, i) => ({ label: `第${i + 1}名`, name }));
-            allWinners[finalsKey] = groupWinners;
+            // Label includes group name when category has multiple groups
+            const groupWinners = qs.map((name, i) => ({
+                label: groups.length === 1 ? `第${i + 1}名` : `${g.name}組第${i + 1}名`,
+                name
+            }));
+            allWinners[cat].push(...groupWinners);
             totalCount += groupWinners.length;
 
             // 3-person group: store 3rd place as prelim bronze
             if (g.members.length === 3 && qs.length === 2) {
                 const third = g.members.find(name => !qs.includes(name));
-                if (third) prelimBronze[finalsKey] = third;
+                if (third) prelimBronze[cat] = third;
             }
         });
+        if (allWinners[cat].length === 0) delete allWinners[cat];
     }
     if (totalCount === 0) { showToast('無晉級者，請先輸入比分', 'error'); return; }
     state.finalQualifiers = allWinners;
@@ -2023,7 +2027,7 @@ function promoteWinners() {
     switchTab('finals');
     saveState();
     const catCount = Object.keys(allWinners).length;
-    let msg = `${totalCount} 位選手晉級決賽（${catCount} 個組別）`;
+    let msg = `${totalCount} 位選手晉級決賽（${catCount} 個項目）`;
     if (autoCompleteCount > 0) msg += `，${autoCompleteCount} 組已自動完賽`;
     else if (autoBracketCount > 0) msg += `，${autoBracketCount} 組已自動產生對戰圖`;
     showToast(msg, 'success');
@@ -2168,7 +2172,12 @@ function buildBracketMatches(qualifiers) {
     for (let r = 0; r < rounds; r++) {
         currentRound.forEach(([p1, p2], mi) => {
             const b1 = p1 === '—BYE—', b2 = p2 === '—BYE—';
-            const winner = b2 ? p1 : (b1 ? p2 : null);
+            const tbd1 = p1 === '—TBD—', tbd2 = p2 === '—TBD—';
+            // Only auto-resolve BYE when opponent is a real player (not TBD)
+            let winner = null;
+            if (b1 && b2) winner = '—BYE—';
+            else if (b2 && !b1 && !tbd1) winner = p1;
+            else if (b1 && !b2 && !tbd2) winner = p2;
             matches.push({ id: `fb_r${r}m${mi}`, round: r, matchIdx: mi, p1, p2, s1: '', s2: '', winner });
         });
         const next = [];
@@ -2186,6 +2195,49 @@ function buildBracketMatches(qualifiers) {
         matches.push({ id: 'fb_3rd', round: maxRound, matchIdx: -1, p1: '—TBD—', p2: '—TBD—', s1: '', s2: '', winner: null, isThirdPlace: true });
     }
     return matches;
+}
+
+// Auto-resolve BYE matches that have a real player opponent (not TBD)
+// Called after confirmBracketWinner to cascade BYE advancements
+function autoResolveBracketBYEs(matches) {
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const m of matches) {
+            if (m.winner) continue;
+            const b1 = m.p1 === '—BYE—', b2 = m.p2 === '—BYE—';
+            if (!b1 && !b2) continue;
+            if (m.p1 === '—TBD—' || m.p2 === '—TBD—') continue;
+            let autoWinner;
+            if (b1 && b2) autoWinner = '—BYE—';
+            else if (b2) autoWinner = m.p1;
+            else autoWinner = m.p2;
+            m.winner = autoWinner;
+            changed = true;
+            if (!m.isThirdPlace) {
+                const nextRound = m.round + 1;
+                const nextMatchIdx = Math.floor(m.matchIdx / 2);
+                const nextSlot = m.matchIdx % 2;
+                const nextMatch = matches.find(x => x.round === nextRound && x.matchIdx === nextMatchIdx && !x.isThirdPlace);
+                if (nextMatch) {
+                    if (nextSlot === 0) nextMatch.p1 = autoWinner;
+                    else nextMatch.p2 = autoWinner;
+                }
+                // Route semi-final loser to 3rd place (skip BYE losers)
+                const thirdMatch = matches.find(x => x.isThirdPlace);
+                if (thirdMatch) {
+                    const maxRound = Math.max(...matches.filter(x => !x.isThirdPlace).map(x => x.round));
+                    if (m.round === maxRound - 1) {
+                        const loser = autoWinner === m.p1 ? m.p2 : m.p1;
+                        if (loser !== '—BYE—' && loser !== '—TBD—') {
+                            if (m.matchIdx === 0) thirdMatch.p1 = loser;
+                            else if (m.matchIdx === 1) thirdMatch.p2 = loser;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 async function generateBracket() {
@@ -2345,6 +2397,9 @@ function confirmBracketWinner(matchId) {
             }
         }
     }
+
+    // Auto-resolve any BYE matches that became ready after this advancement
+    autoResolveBracketBYEs(matches);
 
     saveState();
     renderInteractiveBracket();
