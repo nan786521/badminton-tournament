@@ -761,9 +761,9 @@ function onForfeit(matchId, silent) {
     if (pn1) { pn1.classList.remove('forfeited-injury', 'forfeited-voluntary'); if (f1) pn1.classList.add('forfeited-' + f1); }
     if (pn2) { pn2.classList.remove('forfeited-injury', 'forfeited-voluntary'); if (f2) pn2.classList.add('forfeited-' + f2); }
 
-    // Style score inputs: voluntary = disabled look
-    if (s1) { s1.classList.remove('forfeited-voluntary'); if (f1 === 'voluntary') s1.classList.add('forfeited-voluntary'); }
-    if (s2) { s2.classList.remove('forfeited-voluntary'); if (f2 === 'voluntary') s2.classList.add('forfeited-voluntary'); }
+    // Style score inputs: voluntary = disabled look + auto set 0
+    if (s1) { s1.classList.remove('forfeited-voluntary'); if (f1 === 'voluntary') { s1.classList.add('forfeited-voluntary'); s1.value = '0'; } }
+    if (s2) { s2.classList.remove('forfeited-voluntary'); if (f2 === 'voluntary') { s2.classList.add('forfeited-voluntary'); s2.value = '0'; } }
 
     // Cascade: voluntary forfeit → auto-forfeit subsequent matches
     if (!silent && (f1 === 'voluntary' || f2 === 'voluntary')) {
