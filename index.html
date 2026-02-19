@@ -1237,9 +1237,9 @@ function onForfeit(matchId, silent) {
     if (pn1) { pn1.classList.remove('forfeited-injury', 'forfeited-voluntary'); if (f1) pn1.classList.add('forfeited-' + f1); }
     if (pn2) { pn2.classList.remove('forfeited-injury', 'forfeited-voluntary'); if (f2) pn2.classList.add('forfeited-' + f2); }
 
-    // Style score inputs: any forfeit = set 0 + lock input
-    if (s1) { s1.classList.remove('forfeited-voluntary'); if (f1) { s1.classList.add('forfeited-voluntary'); s1.value = '0'; s1.disabled = true; } else { s1.disabled = false; } }
-    if (s2) { s2.classList.remove('forfeited-voluntary'); if (f2) { s2.classList.add('forfeited-voluntary'); s2.value = '0'; s2.disabled = true; } else { s2.disabled = false; } }
+    // Style score inputs: voluntary = 0 + lock; injury = keep editable
+    if (s1) { s1.classList.remove('forfeited-voluntary'); if (f1 === FF_TYPES.VOLUNTARY) { s1.classList.add('forfeited-voluntary'); s1.value = '0'; s1.disabled = true; } else { s1.disabled = false; } }
+    if (s2) { s2.classList.remove('forfeited-voluntary'); if (f2 === FF_TYPES.VOLUNTARY) { s2.classList.add('forfeited-voluntary'); s2.value = '0'; s2.disabled = true; } else { s2.disabled = false; } }
 
     // Cascade: voluntary forfeit → auto-forfeit subsequent matches
     if (!silent && (f1 === FF_TYPES.VOLUNTARY || f2 === FF_TYPES.VOLUNTARY)) {
