@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.4</title>
+    <title>羽球賽務系統 v19.5</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -277,7 +277,7 @@
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統</h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.4</span>
+    <span id="versionLabel">v19.5</span>
     <button class="theme-toggle" onclick="toggleTheme()">
         <span class="icon" id="themeIcon">&#9790;</span>
         <span id="themeLabel">Dark</span>
@@ -357,6 +357,7 @@
             </button>
         </div>
         <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
+        <button class="btn btn-danger" onclick="generateFullReport()">綜合報表</button>
         <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
         <button class="btn btn-light" onclick="generatePrelimSheets()">產生出賽單</button>
         <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
@@ -463,7 +464,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.4';
+    document.title = (val || '羽球賽務系統') + ' v19.5';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -642,7 +643,7 @@ function loadState() {
             state.eventTitle = saved.eventTitle;
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = saved.eventTitle;
-            document.title = saved.eventTitle + ' v19.4';
+            document.title = saved.eventTitle + ' v19.5';
         }
 
         // Rebuild UI
@@ -979,6 +980,7 @@ function loadPoolItem() {
 
 function deletePoolItem() {
     if (!state.selectedPoolItem) return;
+    if (!confirm('確定要刪除此名單？')) return;
     delete state.setupPool[state.selectedPoolItem];
     state.selectedPoolItem = null;
     refreshPoolList();
@@ -1037,6 +1039,9 @@ function importExcel(event) {
 function startTournament() {
     const keys = Object.keys(state.setupPool);
     if (keys.length === 0) { showToast('暫存池為空', 'error'); return; }
+    if (Object.keys(state.activeGroups).length > 0) {
+        if (!confirm('重新分組會覆蓋目前的預賽資料，確定繼續？')) return;
+    }
     pushUndo();
 
     state.activeGroups = {};
@@ -1462,6 +1467,7 @@ function renderFinalsList() {
 
 function shuffleFinals() {
     if (state.finalQualifiers.length === 0) return;
+    if (!confirm('重新抽籤將打亂目前順序，確定繼續？')) return;
     pushUndo();
     shuffle(state.finalQualifiers);
     renderFinalsList();
@@ -1471,6 +1477,9 @@ function shuffleFinals() {
 
 function generateBracket() {
     if (state.finalQualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
+    if (state.bracketMatches && state.bracketMatches.length > 0) {
+        if (!confirm('重新產生對戰圖會覆蓋目前的決賽資料，確定繼續？')) return;
+    }
     pushUndo();
 
     const players = state.finalQualifiers.map(q => q.name);
@@ -1856,6 +1865,210 @@ function printResultAnnouncement() {
     doc.write('    var iw = cv.width * r, ih = cv.height * r;');
     doc.write('    pdf.addImage(imgData, "JPEG", m + (uw - iw) / 2, m, iw, ih, undefined, "FAST");');
     doc.write('    pdf.save("' + escapeXml(eventTitle) + ' 成績公告.pdf");');
+    doc.write('  });');
+    doc.write('}');
+    doc.write('</scr' + 'ipt>');
+
+    doc.write('</body></html>');
+    doc.close();
+}
+
+// ============================================================
+// Combined Full Report (prelim + finals)
+// ============================================================
+function generateFullReport() {
+    if (Object.keys(state.activeGroups).length === 0) { showToast('尚無預賽資料', 'error'); return; }
+
+    const eventTitle = getEventTitle();
+    const today = new Date();
+    const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
+    const bracketResult = getBracketResults();
+
+    const win = window.open('', '_blank');
+    const doc = win.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+    doc.write('<title>' + escapeXml(eventTitle) + ' 綜合成績報表</title>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></scr' + 'ipt>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+    doc.write('<style>');
+    doc.write('@media print { .no-print { display: none !important; } @page { margin: 12mm; } }');
+    doc.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
+    doc.write('body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #fff; color: #222; font-size: 13px; }');
+    doc.write('.no-print { text-align: center; padding: 12px; background: #f5f5f5; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }');
+    doc.write('.no-print button { padding: 8px 20px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; margin: 0 4px; font-weight: 600; }');
+    doc.write('.btn-print { background: #1a73e8; color: #fff; }');
+    doc.write('.btn-pdf { background: #ea4335; color: #fff; }');
+    doc.write('.report { max-width: 800px; margin: 0 auto; padding: 30px 40px; }');
+    // Header
+    doc.write('.rpt-header { text-align: center; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 3px double #333; }');
+    doc.write('.rpt-event { font-size: 26px; font-weight: 900; letter-spacing: 3px; margin-bottom: 4px; }');
+    doc.write('.rpt-subtitle { font-size: 18px; font-weight: 700; color: #444; margin-bottom: 6px; }');
+    doc.write('.rpt-date { font-size: 13px; color: #666; }');
+    // Section
+    doc.write('.section { margin-bottom: 24px; }');
+    doc.write('.section h2 { font-size: 18px; color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 6px; margin-bottom: 12px; }');
+    doc.write('.section h3 { font-size: 15px; color: #333; margin: 12px 0 8px; }');
+    // Table
+    doc.write('table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }');
+    doc.write('th { background: #f5f5f5; padding: 6px 8px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; font-size: 12px; }');
+    doc.write('td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 12px; }');
+    doc.write('tr.qualified { background: #e6f4ea; }');
+    doc.write('tr.qualified td:first-child { font-weight: 700; color: #137333; }');
+    doc.write('.note-forfeit { color: #ea4335; font-weight: 600; }');
+    doc.write('.note-injury { color: #e67e00; font-weight: 600; }');
+    // Finals result
+    doc.write('.podium { display: flex; justify-content: center; gap: 12px; margin: 16px 0; flex-wrap: wrap; }');
+    doc.write('.podium-item { text-align: center; border-radius: 8px; padding: 12px 20px; min-width: 120px; }');
+    doc.write('.podium-item.gold { background: linear-gradient(180deg, #fff8e1, #ffe082); border: 2px solid #f9ab00; }');
+    doc.write('.podium-item.silver { background: linear-gradient(180deg, #fafafa, #e0e0e0); border: 2px solid #9e9e9e; }');
+    doc.write('.podium-item.bronze { background: linear-gradient(180deg, #fff3e0, #ffcc80); border: 2px solid #ef6c00; }');
+    doc.write('.podium-rank { font-size: 24px; margin-bottom: 2px; }');
+    doc.write('.podium-label { font-size: 12px; color: #555; font-weight: 600; }');
+    doc.write('.podium-name { font-size: 16px; font-weight: 900; }');
+    doc.write('.winner-cell { font-weight: 700; color: #1a73e8; }');
+    doc.write('.score-cell { text-align: center; font-weight: 600; }');
+    doc.write('.round-header td { background: #f9f9f9; font-weight: 700; border-bottom: 1px solid #ddd; }');
+    // Footer
+    doc.write('.rpt-footer { margin-top: 28px; padding-top: 16px; border-top: 3px double #333; text-align: center; font-size: 13px; color: #888; }');
+    doc.write('</style></head><body>');
+
+    // Toolbar
+    doc.write('<div class="no-print">');
+    doc.write('<button class="btn-print" onclick="window.print()">列印</button>');
+    doc.write('<button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button>');
+    doc.write('</div>');
+
+    doc.write('<div class="report" id="reportContent">');
+
+    // Header
+    doc.write('<div class="rpt-header">');
+    doc.write('<div class="rpt-event">' + escapeXml(eventTitle) + '</div>');
+    doc.write('<div class="rpt-subtitle">綜合成績報表</div>');
+    doc.write('<div class="rpt-date">' + dateStr + '</div>');
+    doc.write('</div>');
+
+    // === Prelim section ===
+    doc.write('<div class="section"><h2>預賽成績</h2>');
+    for (const cat in state.activeGroups) {
+        const groups = state.activeGroups[cat];
+        const totalInCat = groups.reduce((s, g) => s + g.members.length, 0);
+        doc.write('<h3>' + escapeXml(cat) + '（共 ' + totalInCat + ' 人）</h3>');
+
+        groups.forEach(group => {
+            const { scores, hasScore } = getScores(cat, group);
+            if (!hasScore) return;
+
+            const nQ = getQualifyCount(group.members.length, totalInCat);
+            const voluntaryPlayers = new Set();
+            const injuryPlayers = new Set();
+            group.matches.forEach(m => {
+                if (getFF(m.matchId, 1) === 'voluntary') voluntaryPlayers.add(m.p1);
+                if (getFF(m.matchId, 2) === 'voluntary') voluntaryPlayers.add(m.p2);
+                if (getFF(m.matchId, 1) === 'injury') injuryPlayers.add(m.p1);
+                if (getFF(m.matchId, 2) === 'injury') injuryPlayers.add(m.p2);
+            });
+
+            const ranked = Object.entries(scores).sort((a, b) => {
+                if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
+                return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
+            });
+
+            doc.write('<div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#555;">' + escapeXml(group.name) + ' 組（' + group.members.length + ' 人）</div>');
+            doc.write('<table><tr><th>排名</th><th>選手</th><th>勝</th><th>負</th><th>得分</th><th>失分</th><th>淨分</th><th>備註</th></tr>');
+
+            ranked.forEach(([idx, s], rank) => {
+                const isQ = rank < nQ;
+                const isV = voluntaryPlayers.has(parseInt(idx));
+                const isI = injuryPlayers.has(parseInt(idx));
+                let note = isV ? '<span class="note-forfeit">棄</span>' : (isI ? '<span class="note-injury">傷</span>' : '');
+
+                doc.write('<tr' + (isQ ? ' class="qualified"' : '') + '>');
+                doc.write('<td>' + (rank + 1) + '</td>');
+                doc.write('<td>' + escapeXml(group.members[parseInt(idx)]) + '</td>');
+                doc.write('<td>' + s.wins + '</td><td>' + s.losses + '</td>');
+                doc.write('<td>' + s.pf + '</td><td>' + s.pa + '</td><td>' + (s.pf - s.pa) + '</td>');
+                doc.write('<td>' + note + '</td>');
+                doc.write('</tr>');
+            });
+            doc.write('</table>');
+        });
+    }
+    doc.write('</div>');
+
+    // === Finals section ===
+    if (bracketResult) {
+        doc.write('<div class="section"><h2>決賽成績</h2>');
+
+        // Podium
+        doc.write('<div class="podium">');
+        doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + escapeXml(bracketResult.champion) + '</div></div>');
+        doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + escapeXml(bracketResult.runnerUp) + '</div></div>');
+        if (bracketResult.bronzes.length > 0) {
+            doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + escapeXml(bracketResult.bronzes.join('、')) + '</div></div>');
+        }
+        doc.write('</div>');
+        if (bracketResult.fourth) {
+            doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">第四名：<strong>' + escapeXml(bracketResult.fourth) + '</strong></span></div>');
+        }
+
+        // Match details
+        const fMatches = state.bracketMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
+        if (fMatches.length > 0) {
+            const normalBracket = state.bracketMatches.filter(m => !m.isThirdPlace);
+            const rounds = normalBracket.length > 0 ? Math.max(...normalBracket.map(m => m.round)) + 1 : 0;
+            const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+
+            doc.write('<h3>對戰明細</h3>');
+            doc.write('<table><tr><th>場次</th><th>選手</th><th style="text-align:center">比分</th><th>選手</th><th>勝者</th></tr>');
+            let lastRound = -1, matchNum = 1, shown3rd = false;
+            fMatches.forEach(m => {
+                if (m.isThirdPlace) {
+                    if (!shown3rd) { doc.write('<tr class="round-header"><td colspan="5">季軍賽</td></tr>'); shown3rd = true; }
+                } else if (m.round !== lastRound) {
+                    lastRound = m.round;
+                    const rn = rounds - m.round <= roundNames.length ? roundNames[roundNames.length - (rounds - m.round)] : '第 ' + (m.round + 1) + ' 輪';
+                    doc.write('<tr class="round-header"><td colspan="5">' + rn + '</td></tr>');
+                }
+                const w = m.winner;
+                const s = m.s1 && m.s2 ? m.s1 + ' : ' + m.s2 : '-';
+                doc.write('<tr><td>' + matchNum + '</td>');
+                doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p1) + '</td>');
+                doc.write('<td class="score-cell">' + s + '</td>');
+                doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p2) + '</td>');
+                doc.write('<td class="winner-cell">' + escapeXml(w) + '</td></tr>');
+                matchNum++;
+            });
+            doc.write('</table>');
+        }
+        doc.write('</div>');
+    }
+
+    // Footer
+    doc.write('<div class="rpt-footer">' + escapeXml(eventTitle) + ' 大會製</div>');
+    doc.write('</div>');
+
+    // PDF download script
+    doc.write('<scr' + 'ipt>');
+    doc.write('function downloadPDF() {');
+    doc.write('  var el = document.getElementById("reportContent");');
+    doc.write('  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#fff" }).then(function(cv) {');
+    doc.write('    var imgData = cv.toDataURL("image/jpeg", 0.92);');
+    doc.write('    var pdf = new jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });');
+    doc.write('    var pw = 210, ph = 297, m = 10;');
+    doc.write('    var uw = pw - m * 2, uh = ph - m * 2;');
+    doc.write('    var r = Math.min(uw / cv.width, uh / cv.height);');
+    doc.write('    var iw = cv.width * r, ih = cv.height * r;');
+    doc.write('    if (ih > uh) {');
+    doc.write('      var pages = Math.ceil(ih / uh);');
+    doc.write('      for (var p = 0; p < pages; p++) {');
+    doc.write('        if (p > 0) pdf.addPage();');
+    doc.write('        pdf.addImage(imgData, "JPEG", m, m - (p * uh), iw, ih, undefined, "FAST");');
+    doc.write('      }');
+    doc.write('    } else {');
+    doc.write('      pdf.addImage(imgData, "JPEG", m + (uw - iw) / 2, m, iw, ih, undefined, "FAST");');
+    doc.write('    }');
+    doc.write('    pdf.save("' + escapeXml(eventTitle) + ' 綜合成績報表.pdf");');
     doc.write('  });');
     doc.write('}');
     doc.write('</scr' + 'ipt>');
@@ -2329,7 +2542,7 @@ function loadFromExcel(event) {
                 state.eventTitle = saved.eventTitle;
                 const h1 = document.getElementById('eventTitle');
                 if (h1) h1.textContent = saved.eventTitle;
-                document.title = saved.eventTitle + ' v19.4';
+                document.title = saved.eventTitle + ' v19.5';
             }
             state.selectedPoolItem = null;
             state.editingKey = null;
