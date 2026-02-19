@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.5</title>
+    <title>羽球賽務系統 v19.7</title>
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
@@ -270,6 +276,36 @@
             .radio-group { gap: 10px; }
             .btn-lg { padding: 12px 20px; font-size: 15px; }
         }
+
+        /* Modal overlay */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        .modal-card { background: var(--bg-card); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); position: relative; max-height: 80vh; overflow-y: auto; }
+        .modal-card h3 { margin-bottom: 16px; font-size: 18px; }
+        .modal-close { position: absolute; top: 12px; right: 16px; font-size: 22px; cursor: pointer; color: var(--text-muted); background: none; border: none; line-height: 1; }
+
+        /* QR Code */
+        .qr-container { text-align: center; }
+        .qr-container img, .qr-container table { margin: 0 auto; }
+        .qr-url { font-size: 12px; color: var(--text-hint); word-break: break-all; margin: 12px 0; }
+
+        /* Share button in header */
+        .header-btn { background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); color: #fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+
+        /* Screenshot button */
+        .screenshot-btn { font-size: 13px; padding: 6px 12px; background: var(--btn-light-bg); color: var(--btn-light-text); border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .screenshot-btn:hover { opacity: 0.8; }
+
+        /* Event manager modal */
+        .event-list { list-style: none; margin: 12px 0; }
+        .event-item { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; }
+        .event-item.active { border-color: #1a73e8; background: var(--selected-bg); }
+        .event-item .event-info { flex: 1; min-width: 0; }
+        .event-item .event-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .event-item .event-time { font-size: 11px; color: var(--text-hint); }
+        .event-item .event-badge { font-size: 11px; background: #1a73e8; color: #fff; padding: 2px 8px; border-radius: 10px; }
+        .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
+        .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
 </head>
 <body>
@@ -277,7 +313,9 @@
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統</h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.5</span>
+    <span id="versionLabel">v19.7</span>
+    <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
+    <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
     <button class="theme-toggle" onclick="toggleTheme()">
         <span class="icon" id="themeIcon">&#9790;</span>
         <span id="themeLabel">Dark</span>
@@ -361,6 +399,7 @@
         <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
         <button class="btn btn-light" onclick="generatePrelimSheets()">產生出賽單</button>
         <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
+        <button class="btn btn-light" onclick="captureScreenshot('scoringArea')">截圖</button>
     </div>
     <div id="progressPanel" class="progress-panel" style="display:none">
         <div class="progress-summary">
@@ -400,6 +439,7 @@
             <button class="btn btn-danger" onclick="printFinalsBracketPDF()">列印對戰圖</button>
             <button class="btn btn-light" onclick="generateFinalsSheets()">產生出賽單</button>
             <button class="btn btn-warning" onclick="exportFinalsExcel()">下載決賽 Excel</button>
+            <button class="btn btn-light" onclick="captureScreenshot('bracketArea')">截圖</button>
         </div>
     </div>
     <div id="finalsScoreArea"></div>
@@ -407,6 +447,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="modalOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal()"></div>
 
 <script>
 // ============================================================
@@ -438,8 +479,216 @@ function updateThemeUI() {
 
 document.addEventListener('DOMContentLoaded', function() {
     updateThemeUI();
+    migrateToMultiEvent();
     loadState();
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
 });
+
+// ============================================================
+// Modal helpers
+// ============================================================
+function closeModal() {
+    const overlay = document.getElementById('modalOverlay');
+    overlay.style.display = 'none';
+    overlay.innerHTML = '';
+}
+
+// ============================================================
+// QR Code Sharing
+// ============================================================
+function showQRCode() {
+    const url = location.href;
+    const overlay = document.getElementById('modalOverlay');
+    let qrHtml = '';
+    try {
+        const qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        qrHtml = qr.createSvgTag(5, 0);
+    } catch (e) {
+        qrHtml = '<p style="color:var(--text-muted)">QR Code 產生失敗</p>';
+    }
+    overlay.innerHTML = `<div class="modal-card">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h3>分享此頁面</h3>
+        <div class="qr-container">${qrHtml}</div>
+        <div class="qr-url">${escapeXml(url)}</div>
+        <button class="btn btn-primary" style="width:100%;" id="qrCopyBtn">複製連結</button>
+    </div>`;
+    overlay.style.display = 'flex';
+    document.getElementById('qrCopyBtn').addEventListener('click', function() {
+        navigator.clipboard.writeText(url).then(function() {
+            showToast('已複製連結', 'success');
+        }).catch(function() {
+            showToast('複製失敗', 'error');
+        });
+    });
+}
+
+// ============================================================
+// Screenshot Sharing
+// ============================================================
+function captureScreenshot(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el || !el.innerHTML.trim()) { showToast('尚無內容可截圖', 'error'); return; }
+    showToast('截圖中...', 'info');
+    html2canvas(el, { scale: 2, useCORS: true, backgroundColor: getComputedStyle(document.body).backgroundColor }).then(function(canvas) {
+        canvas.toBlob(function(blob) {
+            const fileName = (getEventTitle() + '_' + (elementId === 'scoringArea' ? '預賽' : '決賽') + '_' + new Date().toISOString().slice(0, 10) + '.png');
+            // Try native share API (mobile)
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'image/png' })] })) {
+                navigator.share({ files: [new File([blob], fileName, { type: 'image/png' })], title: getEventTitle() }).catch(() => {});
+            } else {
+                // Fallback: download
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+            showToast('截圖完成', 'success');
+        }, 'image/png');
+    }).catch(function() { showToast('截圖失敗', 'error'); });
+}
+
+// ============================================================
+// Multi-Event Management
+// ============================================================
+function generateEventId() {
+    return 'evt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function getEventList() {
+    try {
+        return JSON.parse(localStorage.getItem('badminton_events') || '[]');
+    } catch { return []; }
+}
+
+function saveEventList(list) {
+    localStorage.setItem('badminton_events', JSON.stringify(list));
+}
+
+function migrateToMultiEvent() {
+    // First-time migration: if old state exists but no event list, wrap it as first event
+    const list = getEventList();
+    if (list.length > 0) return; // Already migrated
+    const raw = localStorage.getItem('badminton_state');
+    if (!raw) return; // No data to migrate
+    try {
+        const saved = JSON.parse(raw);
+        const id = generateEventId();
+        state.eventId = id;
+        localStorage.setItem('badminton_event_' + id, raw);
+        saveEventList([{ id, title: saved.eventTitle || '預設賽事', updatedAt: new Date().toISOString() }]);
+    } catch {}
+}
+
+function saveCurrentEvent() {
+    if (!state.eventId) {
+        state.eventId = generateEventId();
+    }
+    const raw = localStorage.getItem('badminton_state');
+    if (raw) localStorage.setItem('badminton_event_' + state.eventId, raw);
+    // Update event list
+    const list = getEventList();
+    const idx = list.findIndex(e => e.id === state.eventId);
+    const entry = { id: state.eventId, title: state.eventTitle || '未命名賽事', updatedAt: new Date().toISOString() };
+    if (idx >= 0) list[idx] = entry;
+    else list.push(entry);
+    saveEventList(list);
+}
+
+function loadEvent(eventId) {
+    const raw = localStorage.getItem('badminton_event_' + eventId);
+    if (!raw) { showToast('找不到此賽事資料', 'error'); return; }
+    // Save current first
+    saveCurrentEvent();
+    // Load target
+    localStorage.setItem('badminton_state', raw);
+    state.eventId = eventId;
+    loadState();
+    closeModal();
+    showToast('已載入賽事', 'success');
+}
+
+function createNewEvent() {
+    // Save current first
+    saveCurrentEvent();
+    // Clear state
+    state.setupPool = {};
+    state.activeGroups = {};
+    state.finalQualifiers = [];
+    state.manualQualify = {};
+    state.bracketMatches = null;
+    state.eventTitle = '';
+    state.selectedPoolItem = null;
+    state.editingKey = null;
+    state.eventId = generateEventId();
+    // Clear undo/redo stacks
+    undoStack.length = 0;
+    redoStack.length = 0;
+    // Reset UI
+    const h1 = document.getElementById('eventTitle');
+    if (h1) h1.textContent = '羽球賽務系統';
+    document.title = '羽球賽務系統 v19.7';
+    const ft = document.getElementById('finalTitle');
+    if (ft) ft.value = '';
+    refreshPoolList();
+    document.getElementById('scoringArea').innerHTML = '<div class="empty-state"><div class="icon">&#127941;</div><p>尚未開始賽事，請先至「名單設定」完成分組</p></div>';
+    document.getElementById('progressPanel').style.display = 'none';
+    renderFinalsList();
+    document.getElementById('bracketArea').innerHTML = '';
+    document.getElementById('finalsScoreArea').innerHTML = '';
+    saveState();
+    saveCurrentEvent();
+    closeModal();
+    switchTab('setup');
+    showToast('已建立新賽事', 'success');
+}
+
+function deleteEvent(eventId) {
+    if (eventId === state.eventId) { showToast('無法刪除目前進行中的賽事', 'error'); return; }
+    if (!confirm('確定要刪除此賽事？此操作無法復原。')) return;
+    localStorage.removeItem('badminton_event_' + eventId);
+    const list = getEventList().filter(e => e.id !== eventId);
+    saveEventList(list);
+    showEventManager();
+    showToast('已刪除', 'success');
+}
+
+function showEventManager() {
+    saveCurrentEvent();
+    const list = getEventList();
+    const overlay = document.getElementById('modalOverlay');
+    let html = `<div class="modal-card">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h3>賽事管理</h3>
+        <button class="btn btn-success" style="width:100%;margin-bottom:12px;" onclick="createNewEvent()">+ 新增賽事</button>
+        <ul class="event-list">`;
+    if (list.length === 0) {
+        html += '<li style="text-align:center;color:var(--text-hint);padding:20px;">尚無已儲存的賽事</li>';
+    } else {
+        list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+        list.forEach(evt => {
+            const isActive = evt.id === state.eventId;
+            const time = evt.updatedAt ? new Date(evt.updatedAt).toLocaleString() : '';
+            html += `<li class="event-item ${isActive ? 'active' : ''}">
+                <div class="event-info">
+                    <div class="event-name">${escapeXml(evt.title || '未命名賽事')}</div>
+                    <div class="event-time">${time}</div>
+                </div>
+                ${isActive ? '<span class="event-badge">進行中</span>' : `<button onclick="loadEvent('${evt.id}')">載入</button>`}
+                ${!isActive ? `<button class="del" onclick="deleteEvent('${evt.id}')">刪除</button>` : ''}
+            </li>`;
+        });
+    }
+    html += '</ul></div>';
+    overlay.innerHTML = html;
+    overlay.style.display = 'flex';
+}
 
 // ============================================================
 // Event Title
@@ -464,7 +713,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.5';
+    document.title = (val || '羽球賽務系統') + ' v19.7';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -485,9 +734,79 @@ const state = {
     manualQualify: {},      // { "cat_gName": [idx, ...] } — manual tie-break selections
     bracketMatches: null,   // [ { id, round, matchIdx, p1, p2, s1, s2, winner } ]
     eventTitle: '',         // Custom event title
+    eventId: null,          // Multi-event ID
     selectedPoolItem: null,
     editingKey: null
 };
+
+// ============================================================
+// Global Constants
+// ============================================================
+const ROUND_NAMES = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+const FF_TYPES = { NONE: '', INJURY: 'injury', VOLUNTARY: 'voluntary' };
+
+// ============================================================
+// Shared Utility Functions
+// ============================================================
+
+// Get both score elements + values for a match
+function getMatchScores(matchId) {
+    const s1El = document.getElementById('s1_' + matchId);
+    const s2El = document.getElementById('s2_' + matchId);
+    return {
+        s1El, s2El,
+        v1: s1El ? s1El.value : '',
+        v2: s2El ? s2El.value : '',
+        n1: s1El ? parseInt(s1El.value) : NaN,
+        n2: s2El ? parseInt(s2El.value) : NaN
+    };
+}
+
+// Collect voluntary/injury players from a group's matches
+function collectForfeitPlayers(group) {
+    const voluntary = new Set();
+    const injury = new Set();
+    group.matches.forEach(m => {
+        const f1 = getFF(m.matchId, 1);
+        const f2 = getFF(m.matchId, 2);
+        if (f1 === FF_TYPES.VOLUNTARY) voluntary.add(m.p1);
+        if (f2 === FF_TYPES.VOLUNTARY) voluntary.add(m.p2);
+        if (f1 === FF_TYPES.INJURY) injury.add(m.p1);
+        if (f2 === FF_TYPES.INJURY) injury.add(m.p2);
+    });
+    return { voluntary, injury };
+}
+
+// Get bracket round count (excluding 3rd place match)
+function getBracketRoundCount(matches) {
+    if (!matches) return 0;
+    const normal = matches.filter(m => !m.isThirdPlace);
+    return normal.length > 0 ? Math.max(...normal.map(m => m.round)) + 1 : 0;
+}
+
+// Get round display name
+function getRoundName(roundIndex, totalRounds) {
+    const offset = totalRounds - roundIndex;
+    return offset <= ROUND_NAMES.length ? ROUND_NAMES[ROUND_NAMES.length - offset] : '第 ' + (roundIndex + 1) + ' 輪';
+}
+
+// Detect tie at qualification boundary; returns { hasTie, tiedIndices }
+function detectTiedGroup(ranked, nQualify) {
+    const boundaryScore = ranked[nQualify - 1] ? ranked[nQualify - 1][1] : null;
+    const tiedIndices = new Set();
+    if (!boundaryScore) return { hasTie: false, tiedIndices };
+    ranked.forEach(([idx, s], rank) => {
+        if (sameRecord(s, boundaryScore)) tiedIndices.add(rank);
+    });
+    const tiedArr = [...tiedIndices];
+    const minTied = Math.min(...tiedArr);
+    const maxTied = Math.max(...tiedArr);
+    if (minTied < nQualify && maxTied >= nQualify) {
+        return { hasTie: true, tiedIndices };
+    }
+    tiedIndices.clear();
+    return { hasTie: false, tiedIndices };
+}
 
 // ============================================================
 // Undo / Redo
@@ -501,12 +820,11 @@ function collectScores() {
     for (const cat in state.activeGroups) {
         state.activeGroups[cat].forEach(g => {
             g.matches.forEach(m => {
-                const s1 = document.getElementById('s1_' + m.matchId);
-                const s2 = document.getElementById('s2_' + m.matchId);
+                const { v1, v2 } = getMatchScores(m.matchId);
                 const f1 = getFF(m.matchId, 1);
                 const f2 = getFF(m.matchId, 2);
-                if ((s1 && s2 && (s1.value || s2.value)) || f1 || f2) {
-                    scores[m.matchId] = [s1 ? s1.value : '', s2 ? s2.value : '', f1, f2];
+                if ((v1 || v2) || f1 || f2) {
+                    scores[m.matchId] = [v1, v2, f1, f2];
                 }
             });
         });
@@ -607,7 +925,7 @@ document.addEventListener('focusin', function(e) {
 function saveState() {
     const scores = collectScores();
     try {
-        localStorage.setItem('badminton_state', JSON.stringify({
+        const data = JSON.stringify({
             setupPool: state.setupPool,
             activeGroups: state.activeGroups,
             finalQualifiers: state.finalQualifiers,
@@ -615,7 +933,10 @@ function saveState() {
             bracketMatches: state.bracketMatches || null,
             eventTitle: state.eventTitle || '',
             scores: scores
-        }));
+        });
+        localStorage.setItem('badminton_state', data);
+        // Also save to event-specific key
+        if (state.eventId) localStorage.setItem('badminton_event_' + state.eventId, data);
         // Show save indicator
         const ind = document.getElementById('saveIndicator');
         if (ind) {
@@ -623,6 +944,12 @@ function saveState() {
             ind.style.color = 'var(--qualified-text)';
             clearTimeout(ind._timer);
             ind._timer = setTimeout(() => { ind.style.color = 'var(--text-hint)'; }, 2000);
+        }
+        // Update event list timestamp
+        if (state.eventId) {
+            const list = getEventList();
+            const idx = list.findIndex(e => e.id === state.eventId);
+            if (idx >= 0) { list[idx].title = state.eventTitle || '未命名賽事'; list[idx].updatedAt = new Date().toISOString(); saveEventList(list); }
         }
     } catch (e) {
         showToast('儲存失敗：' + e.message, 'error');
@@ -634,17 +961,23 @@ function loadState() {
     if (!raw) return;
     try {
         const saved = JSON.parse(raw);
-        if (saved.setupPool) state.setupPool = saved.setupPool;
-        if (saved.activeGroups) state.activeGroups = saved.activeGroups;
-        if (saved.finalQualifiers) state.finalQualifiers = saved.finalQualifiers;
-        if (saved.manualQualify) state.manualQualify = saved.manualQualify;
-        if (saved.bracketMatches) state.bracketMatches = saved.bracketMatches;
-        if (saved.eventTitle) {
-            state.eventTitle = saved.eventTitle;
-            const h1 = document.getElementById('eventTitle');
-            if (h1) h1.textContent = saved.eventTitle;
-            document.title = saved.eventTitle + ' v19.5';
+        state.setupPool = saved.setupPool || {};
+        state.activeGroups = saved.activeGroups || {};
+        state.finalQualifiers = saved.finalQualifiers || [];
+        state.manualQualify = saved.manualQualify || {};
+        state.bracketMatches = saved.bracketMatches || null;
+        // Set eventId from event list if not set
+        if (!state.eventId) {
+            const list = getEventList();
+            if (list.length > 0) {
+                list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+                state.eventId = list[0].id;
+            }
         }
+        state.eventTitle = saved.eventTitle || '';
+        const h1 = document.getElementById('eventTitle');
+        if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
+        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.7';
 
         // Rebuild UI
         refreshPoolList();
@@ -730,7 +1063,7 @@ function setFF(matchId, side, val) {
     const el = document.getElementById('ff' + side + '_' + matchId);
     if (!el) return;
     el.setAttribute('data-ff', val);
-    const labels = { '': '棄', injury: '傷', voluntary: '棄' };
+    const labels = { [FF_TYPES.NONE]: '棄', [FF_TYPES.INJURY]: '傷', [FF_TYPES.VOLUNTARY]: '棄' };
     el.textContent = labels[val] || '棄';
 }
 
@@ -738,7 +1071,7 @@ function setFF(matchId, side, val) {
 function cycleForfeit(matchId, side) {
     pushUndo();
     const cur = getFF(matchId, side);
-    const next = cur === '' ? 'injury' : (cur === 'injury' ? 'voluntary' : '');
+    const next = cur === FF_TYPES.NONE ? FF_TYPES.INJURY : (cur === FF_TYPES.INJURY ? FF_TYPES.VOLUNTARY : FF_TYPES.NONE);
     setFF(matchId, side, next);
     onForfeit(matchId, false);
     updateProgress();
@@ -763,12 +1096,12 @@ function onForfeit(matchId, silent) {
     if (pn2) { pn2.classList.remove('forfeited-injury', 'forfeited-voluntary'); if (f2) pn2.classList.add('forfeited-' + f2); }
 
     // Style score inputs: voluntary = disabled look + auto set 0
-    if (s1) { s1.classList.remove('forfeited-voluntary'); if (f1 === 'voluntary') { s1.classList.add('forfeited-voluntary'); s1.value = '0'; } }
-    if (s2) { s2.classList.remove('forfeited-voluntary'); if (f2 === 'voluntary') { s2.classList.add('forfeited-voluntary'); s2.value = '0'; } }
+    if (s1) { s1.classList.remove('forfeited-voluntary'); if (f1 === FF_TYPES.VOLUNTARY) { s1.classList.add('forfeited-voluntary'); s1.value = '0'; } }
+    if (s2) { s2.classList.remove('forfeited-voluntary'); if (f2 === FF_TYPES.VOLUNTARY) { s2.classList.add('forfeited-voluntary'); s2.value = '0'; } }
 
     // Cascade: voluntary forfeit → auto-forfeit subsequent matches
-    if (!silent && (f1 === 'voluntary' || f2 === 'voluntary')) {
-        cascadeVoluntaryForfeit(matchId, f1 === 'voluntary' ? 1 : 0, f2 === 'voluntary' ? 2 : 0);
+    if (!silent && (f1 === FF_TYPES.VOLUNTARY || f2 === FF_TYPES.VOLUNTARY)) {
+        cascadeVoluntaryForfeit(matchId, f1 === FF_TYPES.VOLUNTARY ? 1 : 0, f2 === FF_TYPES.VOLUNTARY ? 2 : 0);
     }
 
     if (!silent) saveState();
@@ -788,11 +1121,11 @@ function cascadeVoluntaryForfeit(matchId, side1, side2) {
             for (let k = mi + 1; k < group.matches.length; k++) {
                 const m = group.matches[k];
                 if (forfeitPlayers.has(m.p1) && !getFF(m.matchId, 1)) {
-                    setFF(m.matchId, 1, 'voluntary');
+                    setFF(m.matchId, 1, FF_TYPES.VOLUNTARY);
                     onForfeit(m.matchId, true);
                 }
                 if (forfeitPlayers.has(m.p2) && !getFF(m.matchId, 2)) {
-                    setFF(m.matchId, 2, 'voluntary');
+                    setFF(m.matchId, 2, FF_TYPES.VOLUNTARY);
                     onForfeit(m.matchId, true);
                 }
             }
@@ -802,9 +1135,15 @@ function cascadeVoluntaryForfeit(matchId, side1, side2) {
 }
 
 // ============================================================
-// Progress Panel
+// Progress Panel (throttled)
 // ============================================================
+let _progressTimer = null;
 function updateProgress() {
+    if (_progressTimer) return;
+    _progressTimer = requestAnimationFrame(_updateProgressNow);
+}
+function _updateProgressNow() {
+    _progressTimer = null;
     const panel = document.getElementById('progressPanel');
     if (!panel) return;
     if (Object.keys(state.activeGroups).length === 0) { panel.style.display = 'none'; return; }
@@ -816,12 +1155,9 @@ function updateProgress() {
         state.activeGroups[cat].forEach(g => {
             let gDone = 0, gTotal = g.matches.length;
             g.matches.forEach(m => {
-                const s1 = document.getElementById('s1_' + m.matchId);
-                const s2 = document.getElementById('s2_' + m.matchId);
+                const { v1, v2 } = getMatchScores(m.matchId);
                 const f1 = getFF(m.matchId, 1);
                 const f2 = getFF(m.matchId, 2);
-                const v1 = s1 ? s1.value : '';
-                const v2 = s2 ? s2.value : '';
                 // A match is complete if both scores filled OR any forfeit
                 if ((v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2)) || f1 || f2) gDone++;
             });
@@ -872,11 +1208,9 @@ document.addEventListener('change', function(e) {
         }
         // Warn both-zero for prelim
         if (isScore) {
-            const id = e.target.id;
-            const matchId = id.replace(/^s[12]_/, '');
-            const s1 = document.getElementById('s1_' + matchId);
-            const s2 = document.getElementById('s2_' + matchId);
-            if (s1 && s2 && s1.value === '0' && s2.value === '0') {
+            const matchId = e.target.id.replace(/^s[12]_/, '');
+            const { v1, v2 } = getMatchScores(matchId);
+            if (v1 === '0' && v2 === '0') {
                 showToast('提醒：雙方分數皆為 0', 'warning');
             }
         }
@@ -1160,34 +1494,28 @@ function getScores(cat, group) {
     group.members.forEach((_, i) => scores[i] = { wins: 0, losses: 0, pf: 0, pa: 0, forfeits: 0 });
     let hasScore = false;
     group.matches.forEach(m => {
-        const f1 = getFF(m.matchId, 1); // '' | 'injury' | 'voluntary'
+        const f1 = getFF(m.matchId, 1);
         const f2 = getFF(m.matchId, 2);
 
         if (f1 || f2) {
             hasScore = true;
 
             // Injury forfeit: scores still count, but injured player loses
-            if (f1 === 'injury' && !f2) {
-                const s1El = document.getElementById('s1_' + m.matchId);
-                const s2El = document.getElementById('s2_' + m.matchId);
-                const v1 = parseInt(s1El ? s1El.value : '');
-                const v2 = parseInt(s2El ? s2El.value : '');
-                if (!isNaN(v1) && !isNaN(v2)) {
-                    scores[m.p1].pf += v1; scores[m.p1].pa += v2;
-                    scores[m.p2].pf += v2; scores[m.p2].pa += v1;
+            if (f1 === FF_TYPES.INJURY && !f2) {
+                const { n1, n2 } = getMatchScores(m.matchId);
+                if (!isNaN(n1) && !isNaN(n2)) {
+                    scores[m.p1].pf += n1; scores[m.p1].pa += n2;
+                    scores[m.p2].pf += n2; scores[m.p2].pa += n1;
                 }
                 scores[m.p1].losses++; scores[m.p1].forfeits++;
                 scores[m.p2].wins++;
                 return;
             }
-            if (f2 === 'injury' && !f1) {
-                const s1El = document.getElementById('s1_' + m.matchId);
-                const s2El = document.getElementById('s2_' + m.matchId);
-                const v1 = parseInt(s1El ? s1El.value : '');
-                const v2 = parseInt(s2El ? s2El.value : '');
-                if (!isNaN(v1) && !isNaN(v2)) {
-                    scores[m.p1].pf += v1; scores[m.p1].pa += v2;
-                    scores[m.p2].pf += v2; scores[m.p2].pa += v1;
+            if (f2 === FF_TYPES.INJURY && !f1) {
+                const { n1, n2 } = getMatchScores(m.matchId);
+                if (!isNaN(n1) && !isNaN(n2)) {
+                    scores[m.p1].pf += n1; scores[m.p1].pa += n2;
+                    scores[m.p2].pf += n2; scores[m.p2].pa += n1;
                 }
                 scores[m.p2].losses++; scores[m.p2].forfeits++;
                 scores[m.p1].wins++;
@@ -1203,17 +1531,13 @@ function getScores(cat, group) {
         }
 
         // Normal score
-        const s1El = document.getElementById('s1_' + m.matchId);
-        const s2El = document.getElementById('s2_' + m.matchId);
-        if (!s1El || !s2El) return;
-        const v1 = parseInt(s1El.value);
-        const v2 = parseInt(s2El.value);
-        if (isNaN(v1) || isNaN(v2)) return;
+        const { n1, n2 } = getMatchScores(m.matchId);
+        if (isNaN(n1) || isNaN(n2)) return;
         hasScore = true;
-        scores[m.p1].pf += v1; scores[m.p1].pa += v2;
-        scores[m.p2].pf += v2; scores[m.p2].pa += v1;
-        if (v1 > v2) { scores[m.p1].wins++; scores[m.p2].losses++; }
-        else if (v2 > v1) { scores[m.p2].wins++; scores[m.p1].losses++; }
+        scores[m.p1].pf += n1; scores[m.p1].pa += n2;
+        scores[m.p2].pf += n2; scores[m.p2].pa += n1;
+        if (n1 > n2) { scores[m.p1].wins++; scores[m.p2].losses++; }
+        else if (n2 > n1) { scores[m.p2].wins++; scores[m.p1].losses++; }
     });
     return { scores, hasScore };
 }
@@ -1229,14 +1553,7 @@ function renderStandings(cat, gName) {
     const { scores, hasScore } = getScores(cat, group);
     if (!hasScore) { showToast('請先輸入比分', 'error'); return; }
 
-    const voluntaryPlayers = new Set();
-    const injuryPlayers = new Set();
-    group.matches.forEach(m => {
-        if (getFF(m.matchId, 1) === 'voluntary') voluntaryPlayers.add(m.p1);
-        if (getFF(m.matchId, 2) === 'voluntary') voluntaryPlayers.add(m.p2);
-        if (getFF(m.matchId, 1) === 'injury') injuryPlayers.add(m.p1);
-        if (getFF(m.matchId, 2) === 'injury') injuryPlayers.add(m.p2);
-    });
+    const { voluntary: voluntaryPlayers, injury: injuryPlayers } = collectForfeitPlayers(group);
 
     const ranked = Object.entries(scores).sort((a, b) => {
         if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
@@ -1246,25 +1563,7 @@ function renderStandings(cat, gName) {
     const totalInCat = groups.reduce((s, g) => s + g.members.length, 0);
     const nQualify = getQualifyCount(group.members.length, totalInCat);
 
-    // Detect tie at qualification boundary
-    const boundaryScore = ranked[nQualify - 1] ? ranked[nQualify - 1][1] : null;
-    let hasTie = false;
-    const tiedIndices = new Set();
-    if (boundaryScore) {
-        // Find all players with the same record as the boundary
-        ranked.forEach(([idx, s], rank) => {
-            if (sameRecord(s, boundaryScore)) tiedIndices.add(rank);
-        });
-        // Tie exists only if tied group spans across the boundary
-        const tiedArr = [...tiedIndices];
-        const minTied = Math.min(...tiedArr);
-        const maxTied = Math.max(...tiedArr);
-        if (minTied < nQualify && maxTied >= nQualify) {
-            hasTie = true;
-        } else {
-            tiedIndices.clear();
-        }
-    }
+    const { hasTie, tiedIndices } = detectTiedGroup(ranked, nQualify);
 
     const groupKey = `${cat}_${gName}`;
     if (!state.manualQualify) state.manualQualify = {};
@@ -1358,25 +1657,18 @@ function getGroupQualifiers(cat, group) {
     const totalInCat = state.activeGroups[cat].reduce((s, g) => s + g.members.length, 0);
     const nQ = getQualifyCount(group.members.length, totalInCat);
 
-    // Detect tie at boundary
-    const boundaryScore = ranked[nQ - 1] ? ranked[nQ - 1][1] : null;
-    if (boundaryScore) {
-        const tiedRanks = [];
-        ranked.forEach(([idx, s], rank) => { if (sameRecord(s, boundaryScore)) tiedRanks.push(rank); });
-        const minTied = Math.min(...tiedRanks);
-        const maxTied = Math.max(...tiedRanks);
-        if (minTied < nQ && maxTied >= nQ) {
-            // Tie exists — use manual selections
-            const groupKey = `${cat}_${group.name}`;
-            const manual = (state.manualQualify && state.manualQualify[groupKey]) || [];
-            // Auto-qualified: above tied group
-            const result = [];
-            ranked.forEach(([idx, s], rank) => {
-                if (rank < minTied) result.push(group.members[idx]);
-                else if (sameRecord(s, boundaryScore) && manual.includes(parseInt(idx))) result.push(group.members[idx]);
-            });
-            return result;
-        }
+    const { hasTie, tiedIndices } = detectTiedGroup(ranked, nQ);
+    if (hasTie) {
+        const minTied = Math.min(...tiedIndices);
+        const boundaryScore = ranked[nQ - 1][1];
+        const groupKey = `${cat}_${group.name}`;
+        const manual = (state.manualQualify && state.manualQualify[groupKey]) || [];
+        const result = [];
+        ranked.forEach(([idx, s], rank) => {
+            if (rank < minTied) result.push(group.members[idx]);
+            else if (sameRecord(s, boundaryScore) && manual.includes(parseInt(idx))) result.push(group.members[idx]);
+        });
+        return result;
     }
 
     return ranked.slice(0, nQ).map(([idx]) => group.members[idx]);
@@ -1396,20 +1688,15 @@ function promoteWinners() {
             });
             const totalInCat = state.activeGroups[cat].reduce((s, gr) => s + gr.members.length, 0);
             const nQ = getQualifyCount(g.members.length, totalInCat);
-            const boundaryScore = ranked[nQ - 1] ? ranked[nQ - 1][1] : null;
-            if (boundaryScore) {
-                const tiedRanks = [];
-                ranked.forEach(([idx, s], rank) => { if (sameRecord(s, boundaryScore)) tiedRanks.push(rank); });
-                const minTied = Math.min(...tiedRanks);
-                const maxTied = Math.max(...tiedRanks);
-                if (minTied < nQ && maxTied >= nQ) {
-                    const groupKey = `${cat}_${g.name}`;
-                    const manual = state.manualQualify[groupKey] || [];
-                    const slotsForTied = nQ - minTied;
-                    if (manual.length !== slotsForTied) {
-                        showToast(`${cat} ${g.name} 組有平手，請先在戰績表中勾選晉級者（需選 ${slotsForTied} 人）`, 'error');
-                        return;
-                    }
+            const { hasTie, tiedIndices } = detectTiedGroup(ranked, nQ);
+            if (hasTie) {
+                const minTied = Math.min(...tiedIndices);
+                const groupKey = `${cat}_${g.name}`;
+                const manual = state.manualQualify[groupKey] || [];
+                const slotsForTied = nQ - minTied;
+                if (manual.length !== slotsForTied) {
+                    showToast(`${cat} ${g.name} 組有平手，請先在戰績表中勾選晉級者（需選 ${slotsForTied} 人）`, 'error');
+                    return;
                 }
             }
         }
@@ -1567,13 +1854,12 @@ function renderInteractiveBracket() {
     const normalMatches = matches.filter(m => !m.isThirdPlace);
     const thirdMatch = matches.find(m => m.isThirdPlace);
 
-    const rounds = normalMatches.length > 0 ? Math.max(...normalMatches.map(m => m.round)) + 1 : 0;
-    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+    const rounds = getBracketRoundCount(matches);
 
     for (let r = 0; r < rounds; r++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'bracket-round';
-        const roundName = rounds - r <= roundNames.length ? roundNames[roundNames.length - (rounds - r)] : `第 ${r + 1} 輪`;
+        const roundName = getRoundName(r, rounds);
         roundDiv.innerHTML = `<h4>${roundName}</h4>`;
 
         const rMatches = normalMatches.filter(m => m.round === r);
@@ -1671,7 +1957,7 @@ function getBracketResults() {
     if (!matches || matches.length === 0) return null;
 
     const normalMatches = matches.filter(m => !m.isThirdPlace);
-    const maxRound = Math.max(...normalMatches.map(m => m.round));
+    const maxRound = getBracketRoundCount(matches) - 1;
     const finalMatch = normalMatches.find(m => m.round === maxRound);
     if (!finalMatch || !finalMatch.winner) return null;
 
@@ -1733,9 +2019,7 @@ function printResultAnnouncement() {
 
     // Collect all match results for the detail table
     const matches = state.bracketMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
-    const normalBracket = state.bracketMatches.filter(m => !m.isThirdPlace);
-    const rounds = normalBracket.length > 0 ? Math.max(...normalBracket.map(m => m.round)) + 1 : 0;
-    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+    const rounds = getBracketRoundCount(state.bracketMatches);
 
     const win = window.open('', '_blank');
     const doc = win.document;
@@ -1827,7 +2111,7 @@ function printResultAnnouncement() {
                 if (!shown3rd) { doc.write('<tr class="round-header"><td colspan="5">季軍賽</td></tr>'); shown3rd = true; }
             } else if (m.round !== lastRound) {
                 lastRound = m.round;
-                const rn = rounds - m.round <= roundNames.length ? roundNames[roundNames.length - (rounds - m.round)] : '第 ' + (m.round + 1) + ' 輪';
+                const rn = getRoundName(m.round, rounds);
                 doc.write('<tr class="round-header"><td colspan="5">' + rn + '</td></tr>');
             }
             const w = m.winner;
@@ -1876,48 +2160,27 @@ function printResultAnnouncement() {
 // ============================================================
 // Combined Full Report (prelim + finals)
 // ============================================================
-function generateFullReport() {
-    if (Object.keys(state.activeGroups).length === 0) { showToast('尚無預賽資料', 'error'); return; }
-
-    const eventTitle = getEventTitle();
-    const today = new Date();
-    const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
-    const bracketResult = getBracketResults();
-
-    const win = window.open('', '_blank');
-    const doc = win.document;
-    doc.open();
-    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
-    doc.write('<title>' + escapeXml(eventTitle) + ' 綜合成績報表</title>');
-    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></scr' + 'ipt>');
-    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+function _writeReportCSS(doc) {
     doc.write('<style>');
     doc.write('@media print { .no-print { display: none !important; } @page { margin: 12mm; } }');
     doc.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
     doc.write('body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #fff; color: #222; font-size: 13px; }');
     doc.write('.no-print { text-align: center; padding: 12px; background: #f5f5f5; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }');
     doc.write('.no-print button { padding: 8px 20px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; margin: 0 4px; font-weight: 600; }');
-    doc.write('.btn-print { background: #1a73e8; color: #fff; }');
-    doc.write('.btn-pdf { background: #ea4335; color: #fff; }');
+    doc.write('.btn-print { background: #1a73e8; color: #fff; } .btn-pdf { background: #ea4335; color: #fff; }');
     doc.write('.report { max-width: 800px; margin: 0 auto; padding: 30px 40px; }');
-    // Header
     doc.write('.rpt-header { text-align: center; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 3px double #333; }');
     doc.write('.rpt-event { font-size: 26px; font-weight: 900; letter-spacing: 3px; margin-bottom: 4px; }');
     doc.write('.rpt-subtitle { font-size: 18px; font-weight: 700; color: #444; margin-bottom: 6px; }');
     doc.write('.rpt-date { font-size: 13px; color: #666; }');
-    // Section
     doc.write('.section { margin-bottom: 24px; }');
     doc.write('.section h2 { font-size: 18px; color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 6px; margin-bottom: 12px; }');
     doc.write('.section h3 { font-size: 15px; color: #333; margin: 12px 0 8px; }');
-    // Table
     doc.write('table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }');
     doc.write('th { background: #f5f5f5; padding: 6px 8px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; font-size: 12px; }');
     doc.write('td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 12px; }');
-    doc.write('tr.qualified { background: #e6f4ea; }');
-    doc.write('tr.qualified td:first-child { font-weight: 700; color: #137333; }');
-    doc.write('.note-forfeit { color: #ea4335; font-weight: 600; }');
-    doc.write('.note-injury { color: #e67e00; font-weight: 600; }');
-    // Finals result
+    doc.write('tr.qualified { background: #e6f4ea; } tr.qualified td:first-child { font-weight: 700; color: #137333; }');
+    doc.write('.note-forfeit { color: #ea4335; font-weight: 600; } .note-injury { color: #e67e00; font-weight: 600; }');
     doc.write('.podium { display: flex; justify-content: center; gap: 12px; margin: 16px 0; flex-wrap: wrap; }');
     doc.write('.podium-item { text-align: center; border-radius: 8px; padding: 12px 20px; min-width: 120px; }');
     doc.write('.podium-item.gold { background: linear-gradient(180deg, #fff8e1, #ffe082); border: 2px solid #f9ab00; }');
@@ -1926,29 +2189,13 @@ function generateFullReport() {
     doc.write('.podium-rank { font-size: 24px; margin-bottom: 2px; }');
     doc.write('.podium-label { font-size: 12px; color: #555; font-weight: 600; }');
     doc.write('.podium-name { font-size: 16px; font-weight: 900; }');
-    doc.write('.winner-cell { font-weight: 700; color: #1a73e8; }');
-    doc.write('.score-cell { text-align: center; font-weight: 600; }');
+    doc.write('.winner-cell { font-weight: 700; color: #1a73e8; } .score-cell { text-align: center; font-weight: 600; }');
     doc.write('.round-header td { background: #f9f9f9; font-weight: 700; border-bottom: 1px solid #ddd; }');
-    // Footer
     doc.write('.rpt-footer { margin-top: 28px; padding-top: 16px; border-top: 3px double #333; text-align: center; font-size: 13px; color: #888; }');
-    doc.write('</style></head><body>');
+    doc.write('</style>');
+}
 
-    // Toolbar
-    doc.write('<div class="no-print">');
-    doc.write('<button class="btn-print" onclick="window.print()">列印</button>');
-    doc.write('<button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button>');
-    doc.write('</div>');
-
-    doc.write('<div class="report" id="reportContent">');
-
-    // Header
-    doc.write('<div class="rpt-header">');
-    doc.write('<div class="rpt-event">' + escapeXml(eventTitle) + '</div>');
-    doc.write('<div class="rpt-subtitle">綜合成績報表</div>');
-    doc.write('<div class="rpt-date">' + dateStr + '</div>');
-    doc.write('</div>');
-
-    // === Prelim section ===
+function _writeReportPrelimSection(doc) {
     doc.write('<div class="section"><h2>預賽成績</h2>');
     for (const cat in state.activeGroups) {
         const groups = state.activeGroups[cat];
@@ -1960,14 +2207,7 @@ function generateFullReport() {
             if (!hasScore) return;
 
             const nQ = getQualifyCount(group.members.length, totalInCat);
-            const voluntaryPlayers = new Set();
-            const injuryPlayers = new Set();
-            group.matches.forEach(m => {
-                if (getFF(m.matchId, 1) === 'voluntary') voluntaryPlayers.add(m.p1);
-                if (getFF(m.matchId, 2) === 'voluntary') voluntaryPlayers.add(m.p2);
-                if (getFF(m.matchId, 1) === 'injury') injuryPlayers.add(m.p1);
-                if (getFF(m.matchId, 2) === 'injury') injuryPlayers.add(m.p2);
-            });
+            const { voluntary: voluntaryPlayers, injury: injuryPlayers } = collectForfeitPlayers(group);
 
             const ranked = Object.entries(scores).sort((a, b) => {
                 if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
@@ -1988,90 +2228,105 @@ function generateFullReport() {
                 doc.write('<td>' + escapeXml(group.members[parseInt(idx)]) + '</td>');
                 doc.write('<td>' + s.wins + '</td><td>' + s.losses + '</td>');
                 doc.write('<td>' + s.pf + '</td><td>' + s.pa + '</td><td>' + (s.pf - s.pa) + '</td>');
-                doc.write('<td>' + note + '</td>');
-                doc.write('</tr>');
+                doc.write('<td>' + note + '</td></tr>');
             });
             doc.write('</table>');
         });
     }
     doc.write('</div>');
+}
 
-    // === Finals section ===
-    if (bracketResult) {
-        doc.write('<div class="section"><h2>決賽成績</h2>');
-
-        // Podium
-        doc.write('<div class="podium">');
-        doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + escapeXml(bracketResult.champion) + '</div></div>');
-        doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + escapeXml(bracketResult.runnerUp) + '</div></div>');
-        if (bracketResult.bronzes.length > 0) {
-            doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + escapeXml(bracketResult.bronzes.join('、')) + '</div></div>');
-        }
-        doc.write('</div>');
-        if (bracketResult.fourth) {
-            doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">第四名：<strong>' + escapeXml(bracketResult.fourth) + '</strong></span></div>');
-        }
-
-        // Match details
-        const fMatches = state.bracketMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
-        if (fMatches.length > 0) {
-            const normalBracket = state.bracketMatches.filter(m => !m.isThirdPlace);
-            const rounds = normalBracket.length > 0 ? Math.max(...normalBracket.map(m => m.round)) + 1 : 0;
-            const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
-
-            doc.write('<h3>對戰明細</h3>');
-            doc.write('<table><tr><th>場次</th><th>選手</th><th style="text-align:center">比分</th><th>選手</th><th>勝者</th></tr>');
-            let lastRound = -1, matchNum = 1, shown3rd = false;
-            fMatches.forEach(m => {
-                if (m.isThirdPlace) {
-                    if (!shown3rd) { doc.write('<tr class="round-header"><td colspan="5">季軍賽</td></tr>'); shown3rd = true; }
-                } else if (m.round !== lastRound) {
-                    lastRound = m.round;
-                    const rn = rounds - m.round <= roundNames.length ? roundNames[roundNames.length - (rounds - m.round)] : '第 ' + (m.round + 1) + ' 輪';
-                    doc.write('<tr class="round-header"><td colspan="5">' + rn + '</td></tr>');
-                }
-                const w = m.winner;
-                const s = m.s1 && m.s2 ? m.s1 + ' : ' + m.s2 : '-';
-                doc.write('<tr><td>' + matchNum + '</td>');
-                doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p1) + '</td>');
-                doc.write('<td class="score-cell">' + s + '</td>');
-                doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p2) + '</td>');
-                doc.write('<td class="winner-cell">' + escapeXml(w) + '</td></tr>');
-                matchNum++;
-            });
-            doc.write('</table>');
-        }
-        doc.write('</div>');
+function _writeReportFinalsSection(doc, bracketResult) {
+    doc.write('<div class="section"><h2>決賽成績</h2>');
+    // Podium
+    doc.write('<div class="podium">');
+    doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + escapeXml(bracketResult.champion) + '</div></div>');
+    doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + escapeXml(bracketResult.runnerUp) + '</div></div>');
+    if (bracketResult.bronzes.length > 0) {
+        doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + escapeXml(bracketResult.bronzes.join('、')) + '</div></div>');
+    }
+    doc.write('</div>');
+    if (bracketResult.fourth) {
+        doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">第四名：<strong>' + escapeXml(bracketResult.fourth) + '</strong></span></div>');
     }
 
-    // Footer
-    doc.write('<div class="rpt-footer">' + escapeXml(eventTitle) + ' 大會製</div>');
+    // Match details
+    const fMatches = state.bracketMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
+    if (fMatches.length > 0) {
+        const rounds = getBracketRoundCount(state.bracketMatches);
+        doc.write('<h3>對戰明細</h3>');
+        doc.write('<table><tr><th>場次</th><th>選手</th><th style="text-align:center">比分</th><th>選手</th><th>勝者</th></tr>');
+        let lastRound = -1, matchNum = 1, shown3rd = false;
+        fMatches.forEach(m => {
+            if (m.isThirdPlace) {
+                if (!shown3rd) { doc.write('<tr class="round-header"><td colspan="5">季軍賽</td></tr>'); shown3rd = true; }
+            } else if (m.round !== lastRound) {
+                lastRound = m.round;
+                doc.write('<tr class="round-header"><td colspan="5">' + getRoundName(m.round, rounds) + '</td></tr>');
+            }
+            const w = m.winner;
+            const s = m.s1 && m.s2 ? m.s1 + ' : ' + m.s2 : '-';
+            doc.write('<tr><td>' + matchNum + '</td>');
+            doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p1) + '</td>');
+            doc.write('<td class="score-cell">' + s + '</td>');
+            doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p2) + '</td>');
+            doc.write('<td class="winner-cell">' + escapeXml(w) + '</td></tr>');
+            matchNum++;
+        });
+        doc.write('</table>');
+    }
     doc.write('</div>');
+}
 
-    // PDF download script
+function _writeReportPDFScript(doc, pdfTitle) {
     doc.write('<scr' + 'ipt>');
     doc.write('function downloadPDF() {');
     doc.write('  var el = document.getElementById("reportContent");');
     doc.write('  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#fff" }).then(function(cv) {');
     doc.write('    var imgData = cv.toDataURL("image/jpeg", 0.92);');
     doc.write('    var pdf = new jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });');
-    doc.write('    var pw = 210, ph = 297, m = 10;');
-    doc.write('    var uw = pw - m * 2, uh = ph - m * 2;');
+    doc.write('    var pw = 210, ph = 297, m = 10, uw = pw - m * 2, uh = ph - m * 2;');
     doc.write('    var r = Math.min(uw / cv.width, uh / cv.height);');
     doc.write('    var iw = cv.width * r, ih = cv.height * r;');
     doc.write('    if (ih > uh) {');
     doc.write('      var pages = Math.ceil(ih / uh);');
-    doc.write('      for (var p = 0; p < pages; p++) {');
-    doc.write('        if (p > 0) pdf.addPage();');
-    doc.write('        pdf.addImage(imgData, "JPEG", m, m - (p * uh), iw, ih, undefined, "FAST");');
-    doc.write('      }');
-    doc.write('    } else {');
-    doc.write('      pdf.addImage(imgData, "JPEG", m + (uw - iw) / 2, m, iw, ih, undefined, "FAST");');
-    doc.write('    }');
-    doc.write('    pdf.save("' + escapeXml(eventTitle) + ' 綜合成績報表.pdf");');
+    doc.write('      for (var p = 0; p < pages; p++) { if (p > 0) pdf.addPage(); pdf.addImage(imgData, "JPEG", m, m - (p * uh), iw, ih, undefined, "FAST"); }');
+    doc.write('    } else { pdf.addImage(imgData, "JPEG", m + (uw - iw) / 2, m, iw, ih, undefined, "FAST"); }');
+    doc.write('    pdf.save("' + escapeXml(pdfTitle) + '.pdf");');
     doc.write('  });');
     doc.write('}');
     doc.write('</scr' + 'ipt>');
+}
+
+function generateFullReport() {
+    if (Object.keys(state.activeGroups).length === 0) { showToast('尚無預賽資料', 'error'); return; }
+
+    const eventTitle = getEventTitle();
+    const today = new Date();
+    const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
+    const bracketResult = getBracketResults();
+
+    const win = window.open('', '_blank');
+    const doc = win.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+    doc.write('<title>' + escapeXml(eventTitle) + ' 綜合成績報表</title>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></scr' + 'ipt>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+    _writeReportCSS(doc);
+    doc.write('</head><body>');
+
+    doc.write('<div class="no-print"><button class="btn-print" onclick="window.print()">列印</button><button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button></div>');
+    doc.write('<div class="report" id="reportContent">');
+    doc.write('<div class="rpt-header"><div class="rpt-event">' + escapeXml(eventTitle) + '</div><div class="rpt-subtitle">綜合成績報表</div><div class="rpt-date">' + dateStr + '</div></div>');
+
+    _writeReportPrelimSection(doc);
+    if (bracketResult) _writeReportFinalsSection(doc, bracketResult);
+
+    doc.write('<div class="rpt-footer">' + escapeXml(eventTitle) + ' 大會製</div>');
+    doc.write('</div>');
+
+    _writeReportPDFScript(doc, eventTitle + ' 綜合成績報表');
 
     doc.write('</body></html>');
     doc.close();
@@ -2084,7 +2339,6 @@ function generateFinalsScoreTable() {
     const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
     while (players.length < size) players.push('—BYE—');
     const rounds = Math.log2(size);
-    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
     const title = document.getElementById('finalTitle').value.trim() || '決賽對戰表';
 
     // Build first round pairings
@@ -2094,7 +2348,7 @@ function generateFinalsScoreTable() {
     // Build all rounds data
     const allRounds = [];
     for (let r = 0; r < rounds; r++) {
-        const rName = rounds - r <= roundNames.length ? roundNames[roundNames.length - (rounds - r)] : '第 ' + (r + 1) + ' 輪';
+        const rName = getRoundName(r, rounds);
         const matches = currentRound.map(([p1, p2], mi) => {
             const bye1 = p1 === '—BYE—', bye2 = p2 === '—BYE—';
             return { p1, p2, bye1, bye2, id: 'fsr' + r + 'm' + mi };
@@ -2268,7 +2522,6 @@ function generateFinalsSheets() {
     const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
     while (players.length < size) players.push('—BYE—');
     const rounds = Math.log2(size);
-    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
 
     let currentRound = [];
     for (let i = 0; i < players.length; i += 2) currentRound.push([players[i], players[i + 1]]);
@@ -2283,7 +2536,7 @@ function generateFinalsSheets() {
 
     const matches = [];
     for (let r = 0; r < rounds; r++) {
-        const rName = rounds - r <= roundNames.length ? roundNames[roundNames.length - (rounds - r)] : '第 ' + (r + 1) + ' 輪';
+        const rName = getRoundName(r, rounds);
         currentRound.forEach(([p1, p2]) => {
             if (p1 === '—BYE—' || p2 === '—BYE—') {
                 // Auto advance BYE, still increment matchNo
@@ -2451,14 +2704,8 @@ function saveToExcel() {
     for (const cat in state.activeGroups) {
         state.activeGroups[cat].forEach(g => {
             g.matches.forEach(m => {
-                const s1 = document.getElementById('s1_' + m.matchId);
-                const s2 = document.getElementById('s2_' + m.matchId);
-                scores[m.matchId] = [
-                    s1 ? s1.value || '' : '',
-                    s2 ? s2.value || '' : '',
-                    getFF(m.matchId, 1),
-                    getFF(m.matchId, 2)
-                ];
+                const { v1, v2 } = getMatchScores(m.matchId);
+                scores[m.matchId] = [v1, v2, getFF(m.matchId, 1), getFF(m.matchId, 2)];
             });
         });
     }
@@ -2491,12 +2738,12 @@ function saveToExcel() {
             rows.push(['場次', '選手1', '比分1', 'VS', '比分2', '選手2', '備註']);
             group.matches.forEach(m => {
                 const sc = scores[m.matchId] || ['', '', '', ''];
-                const typeLabel = { injury: '受傷棄權', voluntary: '主動棄權' };
+                const typeLabel = { [FF_TYPES.INJURY]: '受傷棄權', [FF_TYPES.VOLUNTARY]: '主動棄權' };
                 let note = '';
                 if (sc[2]) note += group.members[m.p1] + ' ' + (typeLabel[sc[2]] || '棄權');
                 if (sc[3]) note += (note ? '、' : '') + group.members[m.p2] + ' ' + (typeLabel[sc[3]] || '棄權');
-                const d1 = sc[2] === 'voluntary' ? '棄' : (sc[2] === 'injury' ? sc[0] + '(傷)' : sc[0]);
-                const d2 = sc[3] === 'voluntary' ? '棄' : (sc[3] === 'injury' ? sc[1] + '(傷)' : sc[1]);
+                const d1 = sc[2] === FF_TYPES.VOLUNTARY ? '棄' : (sc[2] === FF_TYPES.INJURY ? sc[0] + '(傷)' : sc[0]);
+                const d2 = sc[3] === FF_TYPES.VOLUNTARY ? '棄' : (sc[3] === FF_TYPES.INJURY ? sc[1] + '(傷)' : sc[1]);
                 rows.push([m.matchNo, group.members[m.p1], d1, 'VS', d2, group.members[m.p2], note]);
             });
             rows.push([]);
@@ -2516,6 +2763,9 @@ function saveToExcel() {
 function loadFromExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
+    if (Object.keys(state.activeGroups).length > 0 || Object.keys(state.setupPool).length > 0) {
+        if (!confirm('載入存檔將覆蓋目前所有資料，確定要繼續嗎？')) { event.target.value = ''; return; }
+    }
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
@@ -2532,20 +2782,20 @@ function loadFromExcel(event) {
             }
             const saved = JSON.parse(data[1][0]);
 
-            // Restore state
-            if (saved.setupPool) state.setupPool = saved.setupPool;
-            if (saved.activeGroups) state.activeGroups = saved.activeGroups;
-            if (saved.finalQualifiers) state.finalQualifiers = saved.finalQualifiers;
-            if (saved.manualQualify) state.manualQualify = saved.manualQualify;
-            if (saved.bracketMatches) state.bracketMatches = saved.bracketMatches;
-            if (saved.eventTitle) {
-                state.eventTitle = saved.eventTitle;
-                const h1 = document.getElementById('eventTitle');
-                if (h1) h1.textContent = saved.eventTitle;
-                document.title = saved.eventTitle + ' v19.5';
-            }
+            // Restore state (unconditional to clear stale values)
+            state.setupPool = saved.setupPool || {};
+            state.activeGroups = saved.activeGroups || {};
+            state.finalQualifiers = saved.finalQualifiers || [];
+            state.manualQualify = saved.manualQualify || {};
+            state.bracketMatches = saved.bracketMatches || null;
+            state.eventTitle = saved.eventTitle || '';
+            const h1 = document.getElementById('eventTitle');
+            if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.7';
             state.selectedPoolItem = null;
             state.editingKey = null;
+            undoStack.length = 0;
+            redoStack.length = 0;
 
             // Rebuild UI
             refreshPoolList();
@@ -2590,34 +2840,25 @@ function generateExcel() {
             group.matches.forEach(m => {
                 const f1 = getFF(m.matchId, 1);
                 const f2 = getFF(m.matchId, 2);
+                const { v1, v2 } = getMatchScores(m.matchId);
                 if (f1 || f2) {
                     // Injury: show score + (傷), Voluntary: show 棄
-                    if (f1 === 'injury') {
-                        const s1El = document.getElementById('s1_' + m.matchId);
-                        const s2El = document.getElementById('s2_' + m.matchId);
-                        const v1 = s1El ? s1El.value : ''; const v2 = s2El ? s2El.value : '';
+                    if (f1 === FF_TYPES.INJURY) {
                         scoreMatrix[m.p1][m.p2] = (v1 && v2 ? v1 + ':' + v2 : '') + '(傷)';
                         scoreMatrix[m.p2][m.p1] = (v1 && v2 ? v2 + ':' + v1 : '') + ' W';
-                    } else if (f1 === 'voluntary') {
+                    } else if (f1 === FF_TYPES.VOLUNTARY) {
                         scoreMatrix[m.p1][m.p2] = '棄';
                         scoreMatrix[m.p2][m.p1] = 'W';
                     }
-                    if (f2 === 'injury') {
-                        const s1El = document.getElementById('s1_' + m.matchId);
-                        const s2El = document.getElementById('s2_' + m.matchId);
-                        const v1 = s1El ? s1El.value : ''; const v2 = s2El ? s2El.value : '';
+                    if (f2 === FF_TYPES.INJURY) {
                         scoreMatrix[m.p2][m.p1] = (v1 && v2 ? v2 + ':' + v1 : '') + '(傷)';
                         scoreMatrix[m.p1][m.p2] = (v1 && v2 ? v1 + ':' + v2 : '') + ' W';
-                    } else if (f2 === 'voluntary') {
+                    } else if (f2 === FF_TYPES.VOLUNTARY) {
                         scoreMatrix[m.p2][m.p1] = '棄';
                         scoreMatrix[m.p1][m.p2] = 'W';
                     }
                     return;
                 }
-                const s1El = document.getElementById('s1_' + m.matchId);
-                const s2El = document.getElementById('s2_' + m.matchId);
-                const v1 = s1El ? s1El.value : '';
-                const v2 = s2El ? s2El.value : '';
                 if (v1 !== '' && v2 !== '') {
                     scoreMatrix[m.p1][m.p2] = `${v1}:${v2}`;
                     scoreMatrix[m.p2][m.p1] = `${v2}:${v1}`;
@@ -2663,16 +2904,13 @@ function generateExcel() {
             group.matches.forEach(m => {
                 const f1 = getFF(m.matchId, 1);
                 const f2 = getFF(m.matchId, 2);
-                const s1El = document.getElementById('s1_' + m.matchId);
-                const s2El = document.getElementById('s2_' + m.matchId);
-                const v1 = s1El ? s1El.value : '';
-                const v2 = s2El ? s2El.value : '';
+                const { v1, v2 } = getMatchScores(m.matchId);
                 let note = '';
-                const typeLabel = { injury: '受傷棄權', voluntary: '主動棄權' };
+                const typeLabel = { [FF_TYPES.INJURY]: '受傷棄權', [FF_TYPES.VOLUNTARY]: '主動棄權' };
                 if (f1) note += group.members[m.p1] + ' ' + typeLabel[f1];
                 if (f2) note += (note ? '、' : '') + group.members[m.p2] + ' ' + typeLabel[f2];
-                const d1 = f1 === 'voluntary' ? '棄' : (f1 === 'injury' ? v1 + '(傷)' : v1);
-                const d2 = f2 === 'voluntary' ? '棄' : (f2 === 'injury' ? v2 + '(傷)' : v2);
+                const d1 = f1 === FF_TYPES.VOLUNTARY ? '棄' : (f1 === FF_TYPES.INJURY ? v1 + '(傷)' : v1);
+                const d2 = f2 === FF_TYPES.VOLUNTARY ? '棄' : (f2 === FF_TYPES.INJURY ? v2 + '(傷)' : v2);
                 rows.push([m.matchNo, group.members[m.p1], d1, 'VS', d2, group.members[m.p2], note]);
             });
 
@@ -2887,7 +3125,7 @@ function openChartView() {
 }
 
 function escapeXml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // Match number label: *N format

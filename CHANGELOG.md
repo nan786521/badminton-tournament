@@ -1,5 +1,68 @@
 # 羽球賽務系統 — 修改紀錄
 
+## v19.7
+
+### 2026-02-19
+
+#### 程式碼優化
+- **提取共用工具函式**：
+  - `getMatchScores(matchId)` — 取代 14 處重複的分數 DOM 取值 pattern
+  - `collectForfeitPlayers(group)` — 取代 4 處重複的棄權玩家收集邏輯
+  - `getBracketRoundCount(matches)` — 取代 5 處重複的 bracket 輪次計算
+  - `getRoundName(roundIndex, totalRounds)` — 取代 5 處重複的輪次名稱邏輯
+  - `detectTiedGroup(ranked, nQualify)` — 取代 3 處重複的平手偵測邏輯
+- **全域常數**：
+  - `ROUND_NAMES` — 輪次名稱陣列統一定義
+  - `FF_TYPES` — 棄權類型常數（`NONE`/`INJURY`/`VOLUNTARY`），取代散落各處的魔術字串
+- **效能優化**：
+  - `updateProgress()` 使用 `requestAnimationFrame` 節流，避免每次按鍵重複遍歷所有 DOM
+- **拆分大型函式**：
+  - `generateFullReport()` 200+ 行拆分為 4 個子函式：`_writeReportCSS`、`_writeReportPrelimSection`、`_writeReportFinalsSection`、`_writeReportPDFScript`
+- **版本號更新**：v19.6 → v19.7
+
+---
+
+## v19.6
+
+### 2026-02-19
+
+#### 功能新增
+- **PWA 離線支援**：
+  - 新增 `manifest.json` + `sw.js` Service Worker
+  - 安裝時快取主頁面及所有 CDN 資源（XLSX、html2canvas、jsPDF、qrcode-generator）
+  - 斷網後仍可正常使用所有功能
+  - 支援「加到主畫面」安裝為 App
+- **QR Code 分享**：
+  - Header 新增「分享」按鈕
+  - 點擊顯示 QR Code modal（SVG 格式），掃碼即可開啟頁面
+  - 含「複製連結」按鈕
+- **截圖分享**：
+  - 預賽控制台 + 決賽管理區新增「截圖」按鈕
+  - 使用 html2canvas 擷取畫面為 PNG
+  - 手機觸發原生分享（LINE/WhatsApp 等）
+  - 電腦自動下載 PNG 圖片
+  - html2canvas 改為主頁面直接載入（不再僅限新視窗動態注入）
+- **多賽事管理**：
+  - Header 新增「賽事」按鈕，點擊開啟賽事管理 modal
+  - 支援新增、切換、刪除多場賽事
+  - 每場賽事獨立 localStorage 儲存
+  - 賽事列表顯示名稱 + 最後更新時間
+  - 目前進行中的賽事標記「進行中」
+  - 向下相容：首次開啟自動遷移舊資料為第一場賽事
+- **版本號更新**：v19.5 → v19.6
+
+#### Bug 修復
+- **QR Code 複製按鈕無反應**：改用 `addEventListener` 綁定事件（取代 inline onclick XSS 風險寫法）
+- **escapeXml 未處理引號**：新增 `"` 和 `'` 跳脫，避免 HTML 屬性注入
+- **loadState 殘留舊資料**：改為無條件賦值（`saved.x || default`），載入空存檔時正確清除舊 bracketMatches 等欄位
+- **loadFromExcel 殘留舊資料**：同上修法，並清除 undo/redo 歷史
+- **loadFromExcel 缺確認對話框**：已有資料時跳出確認提示，避免誤覆蓋
+- **createNewEvent 未清除 undo/redo**：新增 `undoStack/redoStack.length = 0`，防止復原到舊賽事資料
+- **createNewEvent 未清除 finalTitle**：新賽事時重置決賽標題欄位
+- **loadState eventId 未排序**：取最近更新的賽事 ID（依 updatedAt 降序排序）
+
+---
+
 ## v19.5
 
 ### 2026-02-19
