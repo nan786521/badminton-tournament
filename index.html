@@ -2503,8 +2503,8 @@ function printResultAnnouncement() {
     doc.write('.ann-subtitle { font-size: 20px; font-weight: 700; letter-spacing: 2px; color: #444; margin-bottom: 8px; }');
     doc.write('.ann-date { font-size: 14px; color: #666; }');
     // Podium
-    doc.write('.podium { display: flex; justify-content: center; align-items: flex-end; gap: 16px; margin: 32px 0; }');
-    doc.write('.podium-item { text-align: center; border-radius: 8px; padding: 16px 24px; min-width: 140px; }');
+    doc.write('.podium { display: flex; justify-content: center; align-items: flex-end; gap: 12px; margin: 32px 0; }');
+    doc.write('.podium-item { text-align: center; border-radius: 8px; padding: 14px 12px; flex: 1; max-width: 200px; }');
     doc.write('.podium-item.gold { background: linear-gradient(180deg, #fff8e1, #ffe082); border: 2px solid #f9ab00; order: 2; transform: scale(1.1); }');
     doc.write('.podium-item.silver { background: linear-gradient(180deg, #fafafa, #e0e0e0); border: 2px solid #9e9e9e; order: 1; }');
     doc.write('.podium-item.bronze { background: linear-gradient(180deg, #fff3e0, #ffcc80); border: 2px solid #ef6c00; order: 3; }');
@@ -2512,16 +2512,16 @@ function printResultAnnouncement() {
     doc.write('.podium-4th strong { font-size: 16px; color: #333; }');
     doc.write('.podium-rank { font-size: 28px; margin-bottom: 4px; }');
     doc.write('.podium-label { font-size: 13px; color: #555; font-weight: 600; margin-bottom: 4px; }');
-    doc.write('.podium-name { font-size: 20px; font-weight: 900; }');
+    doc.write('.podium-name { font-size: 18px; font-weight: 900; word-break: keep-all; }');
     // Match detail table
     doc.write('.match-section { margin-top: 32px; }');
     doc.write('.match-section h3 { font-size: 16px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #333; }');
-    doc.write('table { width: 100%; border-collapse: collapse; font-size: 14px; }');
-    doc.write('th { background: #f5f5f5; padding: 8px 12px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; }');
-    doc.write('td { padding: 8px 12px; border-bottom: 1px solid #eee; }');
+    doc.write('table { width: 100%; border-collapse: collapse; font-size: 13px; }');
+    doc.write('th { background: #f5f5f5; padding: 6px 8px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; }');
+    doc.write('td { padding: 6px 8px; border-bottom: 1px solid #eee; white-space: nowrap; }');
     doc.write('tr:last-child td { border-bottom: 2px solid #ddd; }');
     doc.write('.winner-cell { font-weight: 700; color: #1a73e8; }');
-    doc.write('.score-cell { text-align: center; font-weight: 600; font-size: 15px; }');
+    doc.write('.score-cell { text-align: center; font-weight: 600; font-size: 14px; }');
     doc.write('.round-header td { background: #f9f9f9; font-weight: 700; color: #333; border-bottom: 1px solid #ddd; }');
     // Footer
     doc.write('.ann-footer { margin-top: 36px; padding-top: 20px; border-top: 3px double #333; text-align: center; font-size: 13px; color: #888; }');
@@ -2556,7 +2556,11 @@ function printResultAnnouncement() {
     }
     doc.write('</div>');
     if (result.fourth) {
-        doc.write('<div style="text-align:center;"><div class="podium-4th">殿軍：<strong>' + fmtName(result.fourth) + '</strong></div></div>');
+        if (isDoubles) {
+            doc.write('<div style="text-align:center;"><div class="podium-4th">殿軍<br><strong>' + fmtName(result.fourth) + '</strong></div></div>');
+        } else {
+            doc.write('<div style="text-align:center;"><div class="podium-4th">殿軍<strong>' + fmtName(result.fourth) + '</strong></div></div>');
+        }
     }
 
     // Match details table
@@ -2649,13 +2653,13 @@ function _writeReportCSS(doc) {
     doc.write('tr.qualified { background: #e6f4ea; } tr.qualified td:first-child { font-weight: 700; color: #137333; }');
     doc.write('.note-forfeit { color: #ea4335; font-weight: 600; } .note-injury { color: #e67e00; font-weight: 600; }');
     doc.write('.podium { display: flex; justify-content: center; gap: 12px; margin: 16px 0; flex-wrap: wrap; }');
-    doc.write('.podium-item { text-align: center; border-radius: 8px; padding: 12px 20px; min-width: 120px; }');
+    doc.write('.podium-item { text-align: center; border-radius: 8px; padding: 12px 10px; min-width: 120px; flex: 1; max-width: 200px; }');
     doc.write('.podium-item.gold { background: linear-gradient(180deg, #fff8e1, #ffe082); border: 2px solid #f9ab00; }');
     doc.write('.podium-item.silver { background: linear-gradient(180deg, #fafafa, #e0e0e0); border: 2px solid #9e9e9e; }');
     doc.write('.podium-item.bronze { background: linear-gradient(180deg, #fff3e0, #ffcc80); border: 2px solid #ef6c00; }');
     doc.write('.podium-rank { font-size: 24px; margin-bottom: 2px; }');
     doc.write('.podium-label { font-size: 12px; color: #555; font-weight: 600; }');
-    doc.write('.podium-name { font-size: 16px; font-weight: 900; }');
+    doc.write('.podium-name { font-size: 16px; font-weight: 900; word-break: keep-all; }');
     doc.write('.winner-cell { font-weight: 700; color: #1a73e8; } .score-cell { text-align: center; font-weight: 600; }');
     doc.write('.round-header td { background: #f9f9f9; font-weight: 700; border-bottom: 1px solid #ddd; }');
     doc.write('.rpt-footer { margin-top: 28px; padding-top: 16px; border-top: 3px double #333; text-align: center; font-size: 13px; color: #888; }');
@@ -2726,7 +2730,11 @@ function _writeReportFinalsSection(doc) {
         }
         doc.write('</div>');
         if (bracketResult.fourth) {
-            doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">殿軍：<strong>' + fmtName(bracketResult.fourth) + '</strong></span></div>');
+            if (isDoubles) {
+                doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">殿軍<br><strong>' + fmtName(bracketResult.fourth) + '</strong></span></div>');
+            } else {
+                doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">殿軍<strong>' + fmtName(bracketResult.fourth) + '</strong></span></div>');
+            }
         }
         // Match details
         const catMatches = state.bracketMatches[cat] || [];
