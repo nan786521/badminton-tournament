@@ -108,23 +108,20 @@
         .category-header h3 { color: #1a73e8; margin: 0; }
         .group-card { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
         .group-card h4 { font-size: 15px; color: var(--text); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-dotted); }
-        .match-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dotted var(--border-dotted); flex-wrap: wrap; }
+        .match-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dotted var(--border-dotted); flex-wrap: nowrap; }
         .match-row:last-child { border-bottom: none; }
         .match-no { background: #ea4335; color: #fff; font-size: 12px; font-weight: 700; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .player-name { font-weight: 600; min-width: 100px; text-align: right; font-size: 14px; }
+        .player-name { font-weight: 600; min-width: 0; flex: 1; text-align: right; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .player-name.right { text-align: left; }
-        .score-input { width: 70px; text-align: center; font-weight: 700; font-size: 16px; padding: 8px 6px; background: var(--score-input-bg); color: var(--text); border-radius: 6px; }
-        .vs-label { font-weight: 700; color: var(--text-placeholder); font-size: 13px; }
-        .ff-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; min-width: 44px; min-height: 44px; text-align: center; border-radius: 6px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 2px; padding: 0 6px; transition: transform 0.1s; }
-        .ff-badge:active { transform: scale(0.9); }
+        .score-input { width: 70px !important; flex-shrink: 0; text-align: center; font-weight: 700; font-size: 16px; padding: 6px 4px; background: var(--score-input-bg); color: var(--text); border: 1.5px solid var(--border-input); border-radius: 6px; }
+        .vs-label { font-weight: 700; color: var(--text-placeholder); font-size: 13px; flex-shrink: 0; }
+        .ff-badge { display: inline-block; font-size: 15px; font-weight: 700; min-width: 26px; height: 22px; line-height: 22px; text-align: center; border-radius: 3px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 3px; padding: 0 3px; }
         .ff-badge[data-ff=""] { color: var(--text-placeholder); opacity: 0.5; border: 1px dashed var(--border-input); }
         .ff-badge[data-ff="injury"] { background: #fff3e0; color: #e67e00; border: 1px solid #e67e00; opacity: 1; }
         .ff-badge[data-ff="voluntary"] { background: #fde8e8; color: #ea4335; border: 1px solid #ea4335; opacity: 1; }
-        .match-row.has-forfeit .player-name.forfeited-injury { color: #e67e00; background: rgba(230, 126, 0, 0.12); padding: 2px 6px; border-radius: 4px; }
-        .match-row.has-forfeit .player-name.forfeited-voluntary { text-decoration: line-through; color: #ea4335; background: rgba(234, 67, 53, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .match-row.has-forfeit .player-name.forfeited-injury { color: #e67e00; }
+        .match-row.has-forfeit .player-name.forfeited-voluntary { text-decoration: line-through; color: var(--text-placeholder); }
         .match-row.has-forfeit .score-input.forfeited-voluntary { opacity: 0.4; }
-        [data-theme="dark"] .match-row.has-forfeit .player-name.forfeited-injury { background: rgba(230, 126, 0, 0.2); }
-        [data-theme="dark"] .match-row.has-forfeit .player-name.forfeited-voluntary { color: #ff6b6b; background: rgba(234, 67, 53, 0.18); }
 
         /* Control bar */
         .control-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px; background: var(--bg-card); border-radius: 10px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); align-items: center; }
@@ -271,9 +268,9 @@
             .action-bar { gap: 6px; }
             .action-bar .btn { flex: 1 1 calc(50% - 3px); font-size: 13px; padding: 10px 6px; }
 
-            /* Match row — prevent wrapping misalignment */
-            .match-row { gap: 4px; padding: 10px 0; flex-wrap: nowrap; overflow-x: auto; }
-            .score-input { width: 56px; font-size: 16px; padding: 8px 4px; }
+            /* Match row */
+            .match-row { gap: 6px; padding: 10px 0; }
+            .score-input { width: 56px !important; font-size: 16px; padding: 8px 4px; }
             .player-name { min-width: 0; flex: 1; font-size: 13px; }
             .vs-label { font-size: 12px; }
             .match-no { width: 24px; height: 24px; font-size: 11px; }
