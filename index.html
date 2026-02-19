@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.19';</script>
+    <script>const APP_VERSION = 'v19.20';</script>
 </head>
 <body>
 
@@ -2159,11 +2159,27 @@ async function shuffleFinals() {
 }
 
 // Build bracket matches array from a list of qualifiers (reusable helper)
+// Standard bracket seed order: distributes BYEs evenly across all quadrants
+// e.g. size=8 → [0,7,3,4,1,6,2,5] (seed 0 vs 7, seed 3 vs 4, etc.)
+function bracketSeedOrder(n) {
+    if (n === 1) return [0];
+    const half = bracketSeedOrder(n / 2);
+    return half.reduce((acc, seed) => { acc.push(seed); acc.push(n - 1 - seed); return acc; }, []);
+}
+
 function buildBracketMatches(qualifiers) {
-    const players = qualifiers.map(q => q.name);
-    const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
-    while (players.length < size) players.push('—BYE—');
+    const realPlayers = qualifiers.map(q => q.name);
+    const size = Math.pow(2, Math.ceil(Math.log2(realPlayers.length)));
     const rounds = Math.log2(size);
+
+    // Distribute BYEs evenly using standard bracket seeding
+    // BYEs (highest "seeds") face top seeds and spread across all bracket halves
+    const seedOrder = bracketSeedOrder(size);
+    const players = new Array(size);
+    for (let pos = 0; pos < size; pos++) {
+        const seedRank = seedOrder[pos];
+        players[pos] = seedRank < realPlayers.length ? realPlayers[seedRank] : '—BYE—';
+    }
 
     const matches = [];
     let currentRound = [];
@@ -2431,7 +2447,7 @@ function renderBracketResult() {
         html += `<div class="medal-item bronze"><div class="medal-label">🥉 季軍</div><div class="medal-name">${result.bronzes.join('、')}</div></div>`;
     }
     if (result.fourth) {
-        html += `<div class="medal-item" style="background:var(--bg-card);border:1.5px solid var(--border);"><div class="medal-label">第四名</div><div class="medal-name">${result.fourth}</div></div>`;
+        html += `<div class="medal-item" style="background:var(--bg-card);border:1.5px solid var(--border);"><div class="medal-label">殿軍</div><div class="medal-name">${result.fourth}</div></div>`;
     }
     html += '</div>';
     html += '<div class="result-print-btn"><button class="btn btn-danger" onclick="printResultAnnouncement()">列印 / 下載成績公告</button></div>';
@@ -2482,8 +2498,8 @@ function printResultAnnouncement() {
     doc.write('.podium-item.gold { background: linear-gradient(180deg, #fff8e1, #ffe082); border: 2px solid #f9ab00; order: 2; transform: scale(1.1); }');
     doc.write('.podium-item.silver { background: linear-gradient(180deg, #fafafa, #e0e0e0); border: 2px solid #9e9e9e; order: 1; }');
     doc.write('.podium-item.bronze { background: linear-gradient(180deg, #fff3e0, #ffcc80); border: 2px solid #ef6c00; order: 3; }');
-    doc.write('.podium-fourth { text-align: center; margin: 16px auto 0; padding: 10px 20px; border: 1px solid #ddd; border-radius: 6px; display: inline-block; font-size: 14px; color: #555; }');
-    doc.write('.podium-fourth strong { font-size: 16px; color: #333; }');
+    doc.write('.podium-4th { text-align: center; margin: 16px auto 0; padding: 10px 20px; border: 1px solid #ddd; border-radius: 6px; display: inline-block; font-size: 14px; color: #555; }');
+    doc.write('.podium-4th strong { font-size: 16px; color: #333; }');
     doc.write('.podium-rank { font-size: 28px; margin-bottom: 4px; }');
     doc.write('.podium-label { font-size: 13px; color: #555; font-weight: 600; margin-bottom: 4px; }');
     doc.write('.podium-name { font-size: 20px; font-weight: 900; }');
@@ -2527,7 +2543,7 @@ function printResultAnnouncement() {
     }
     doc.write('</div>');
     if (result.fourth) {
-        doc.write('<div style="text-align:center;"><div class="podium-fourth">第四名：<strong>' + escapeXml(result.fourth) + '</strong></div></div>');
+        doc.write('<div style="text-align:center;"><div class="podium-4th">殿軍：<strong>' + escapeXml(result.fourth) + '</strong></div></div>');
     }
 
     // Match details table
@@ -2685,7 +2701,7 @@ function _writeReportFinalsSection(doc) {
         }
         doc.write('</div>');
         if (bracketResult.fourth) {
-            doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">第四名：<strong>' + escapeXml(bracketResult.fourth) + '</strong></span></div>');
+            doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">殿軍：<strong>' + escapeXml(bracketResult.fourth) + '</strong></span></div>');
         }
         // Match details
         const catMatches = state.bracketMatches[cat] || [];
@@ -2775,9 +2791,11 @@ function generateFinalsScoreTable() {
     const qualifiers = getCurrentFinalQualifiers();
     if (qualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
 
-    const players = qualifiers.map(q => q.name);
-    const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
-    while (players.length < size) players.push('—BYE—');
+    const realPlayers = qualifiers.map(q => q.name);
+    const size = Math.pow(2, Math.ceil(Math.log2(realPlayers.length)));
+    const seedOrd = bracketSeedOrder(size);
+    const players = new Array(size);
+    for (let pos = 0; pos < size; pos++) players[pos] = seedOrd[pos] < realPlayers.length ? realPlayers[seedOrd[pos]] : '—BYE—';
     const rounds = Math.log2(size);
     const title = document.getElementById('finalTitle').value.trim() || '決賽對戰表';
 
@@ -2964,9 +2982,11 @@ function generateFinalsSheets() {
     const title = prompt('請輸入賽事名稱', catPrefix + (document.getElementById('finalTitle').value.trim() || getEventTitle()));
     if (!title) return;
 
-    const players = qualifiers.map(q => q.name);
-    const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
-    while (players.length < size) players.push('—BYE—');
+    const realPlayers2 = qualifiers.map(q => q.name);
+    const size = Math.pow(2, Math.ceil(Math.log2(realPlayers2.length)));
+    const seedOrd2 = bracketSeedOrder(size);
+    const players = new Array(size);
+    for (let pos = 0; pos < size; pos++) players[pos] = seedOrd2[pos] < realPlayers2.length ? realPlayers2[seedOrd2[pos]] : '—BYE—';
     const rounds = Math.log2(size);
 
     let currentRound = [];
@@ -3396,7 +3416,7 @@ function exportFinalsExcel() {
             rows.push(['冠軍', result.champion]);
             rows.push(['亞軍', result.runnerUp]);
             if (result.bronzes.length > 0) rows.push(['季軍', result.bronzes.join('、')]);
-            if (result.fourth) rows.push(['第四名', result.fourth]);
+            if (result.fourth) rows.push(['殿軍', result.fourth]);
         }
         const ws = XLSX.utils.aoa_to_sheet(rows);
         ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 20 }];
@@ -3740,10 +3760,12 @@ function drawLineGroup(ox, oy, w, h, cat, group) {
 
 // ---- Single Elimination Bracket SVG ----
 function buildBracketSVG(qualifiers, totalWidth) {
-    const players = qualifiers.map(q => q.name);
-    const n = players.length;
+    const realP = qualifiers.map(q => q.name);
+    const n = realP.length;
     const size = Math.pow(2, Math.ceil(Math.log2(n)));
-    while (players.length < size) players.push(null); // BYE
+    const seedOrdSvg = bracketSeedOrder(size);
+    const players = new Array(size);
+    for (let pos = 0; pos < size; pos++) players[pos] = seedOrdSvg[pos] < n ? realP[seedOrdSvg[pos]] : null;
 
     const rounds = Math.log2(size);
     const matchH = 50, slotH = 22;
