@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.16';</script>
+    <script>const APP_VERSION = 'v19.17';</script>
 </head>
 <body>
 
@@ -1934,62 +1934,66 @@ function promoteWinners() {
     const allWinners = {};
     let totalCount = 0;
     for (const cat in state.activeGroups) {
-        const catWinners = [];
-        state.activeGroups[cat].forEach(g => {
+        const groups = state.activeGroups[cat];
+        groups.forEach(g => {
             const qs = getGroupQualifiers(cat, g);
-            qs.forEach((name, i) => {
-                catWinners.push({ label: `${g.name}組 第${i + 1}名`, name });
-            });
+            if (qs.length === 0) return;
+            // Each group gets its own finals bracket: "高女單 A組"
+            const finalsKey = groups.length === 1 ? cat : `${cat} ${g.name}組`;
+            const groupWinners = qs.map((name, i) => ({ label: `第${i + 1}名`, name }));
+            allWinners[finalsKey] = groupWinners;
+            totalCount += groupWinners.length;
         });
-        if (catWinners.length > 0) {
-            allWinners[cat] = catWinners;
-            totalCount += catWinners.length;
-        }
     }
     if (totalCount === 0) { showToast('無晉級者，請先輸入比分', 'error'); return; }
     state.finalQualifiers = allWinners;
     state.bracketMatches = {};
 
     // Auto-generate bracket for categories with exactly 2 qualifiers
-    // If both come from the same 2-person group, auto-fill prelim scores & confirm winner
+    // If they come from a 2-person prelim group, auto-fill scores & confirm winner
     let autoBracketCount = 0;
     let autoCompleteCount = 0;
-    for (const cat in allWinners) {
-        if (allWinners[cat].length === 2) {
-            const bracketMatches = buildBracketMatches(allWinners[cat]);
+    for (const fKey in allWinners) {
+        if (allWinners[fKey].length === 2) {
+            const bracketMatches = buildBracketMatches(allWinners[fKey]);
 
-            // Try to carry prelim scores: check if both qualifiers are from the same group
-            const g1 = allWinners[cat][0].label.replace(/組.*$/, '');
-            const g2 = allWinners[cat][1].label.replace(/組.*$/, '');
-            if (g1 === g2) {
-                const group = state.activeGroups[cat].find(g => g.name === g1);
-                if (group && group.members.length === 2 && group.matches.length === 1) {
-                    const pm = group.matches[0];
-                    const { n1, n2 } = getMatchScores(pm.matchId);
-                    const f1 = getFF(pm.matchId, 1);
-                    const f2 = getFF(pm.matchId, 2);
-                    const hasScores = (!isNaN(n1) && !isNaN(n2) && n1 !== n2) || f1 || f2;
-                    if (hasScores) {
-                        const bm = bracketMatches[0]; // single bracket match
-                        const prelimP1Name = group.members[pm.p1];
-                        // Map prelim player order to bracket player order
-                        if (bm.p1 === prelimP1Name) {
-                            bm.s1 = String(isNaN(n1) ? 0 : n1);
-                            bm.s2 = String(isNaN(n2) ? 0 : n2);
-                        } else {
-                            bm.s1 = String(isNaN(n2) ? 0 : n2);
-                            bm.s2 = String(isNaN(n1) ? 0 : n1);
-                        }
-                        const bs1 = parseInt(bm.s1), bs2 = parseInt(bm.s2);
-                        if (bs1 !== bs2) {
-                            bm.winner = bs1 > bs2 ? bm.p1 : bm.p2;
-                            autoCompleteCount++;
-                        }
+            // Try to carry prelim scores: find the source group
+            // fKey is either "cat" (single group) or "cat G組"
+            let sourceGroup = null;
+            for (const cat in state.activeGroups) {
+                for (const g of state.activeGroups[cat]) {
+                    if (g.members.length === 2 && g.members.includes(allWinners[fKey][0].name) && g.members.includes(allWinners[fKey][1].name)) {
+                        sourceGroup = g;
+                        break;
+                    }
+                }
+                if (sourceGroup) break;
+            }
+            if (sourceGroup && sourceGroup.matches.length === 1) {
+                const pm = sourceGroup.matches[0];
+                const { n1, n2 } = getMatchScores(pm.matchId);
+                const f1 = getFF(pm.matchId, 1);
+                const f2 = getFF(pm.matchId, 2);
+                const hasScores = (!isNaN(n1) && !isNaN(n2) && n1 !== n2) || f1 || f2;
+                if (hasScores) {
+                    const bm = bracketMatches[0];
+                    const prelimP1Name = sourceGroup.members[pm.p1];
+                    if (bm.p1 === prelimP1Name) {
+                        bm.s1 = String(isNaN(n1) ? 0 : n1);
+                        bm.s2 = String(isNaN(n2) ? 0 : n2);
+                    } else {
+                        bm.s1 = String(isNaN(n2) ? 0 : n2);
+                        bm.s2 = String(isNaN(n1) ? 0 : n1);
+                    }
+                    const bs1 = parseInt(bm.s1), bs2 = parseInt(bm.s2);
+                    if (bs1 !== bs2) {
+                        bm.winner = bs1 > bs2 ? bm.p1 : bm.p2;
+                        autoCompleteCount++;
                     }
                 }
             }
 
-            state.bracketMatches[cat] = bracketMatches;
+            state.bracketMatches[fKey] = bracketMatches;
             autoBracketCount++;
         }
     }
