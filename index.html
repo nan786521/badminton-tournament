@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.22';</script>
+    <script>const APP_VERSION = 'v19.23';</script>
 </head>
 <body>
 
@@ -2479,7 +2479,7 @@ function printResultAnnouncement() {
     doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></scr' + 'ipt>');
     doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
     doc.write('<style>');
-    doc.write('@media print { .no-print { display: none !important; } }');
+    doc.write('@media print { body { margin: 0; } .no-print { display: none !important; } }');
     doc.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
     doc.write('body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #fff; color: #222; }');
     doc.write('.no-print { text-align: center; padding: 16px; background: #f5f5f5; border-bottom: 1px solid #ddd; }');
@@ -2619,7 +2619,7 @@ function printResultAnnouncement() {
 // ============================================================
 function _writeReportCSS(doc) {
     doc.write('<style>');
-    doc.write('@media print { .no-print { display: none !important; } }');
+    doc.write('@media print { body { margin: 0; } .no-print { display: none !important; } }');
     doc.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
     doc.write('body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #fff; color: #222; font-size: 13px; }');
     doc.write('.no-print { text-align: center; padding: 12px; background: #f5f5f5; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }');
@@ -2910,7 +2910,7 @@ function printFinalsBracketPDF() {
     doc.write('.btn-pdf { background: #ea4335; color: #fff; border: none; }');
     doc.write('svg { display: block; margin: 0 auto; max-width: 100%; }');
     doc.write('</style>');
-    doc.write('<style id="orientStyle">@media print { @page { margin: 8mm; size: landscape; } }</style>');
+    doc.write('<style id="orientStyle">@media print { @page { margin: 8mm; size: landscape; } svg { max-height: 190mm; width: auto; height: auto; } }</style>');
     doc.write('</head><body>');
     doc.write('<div class="no-print">');
     doc.write('<select id="orientSelect" onchange="updateOrient()"><option value="landscape">橫向</option><option value="portrait">直向</option></select>');
@@ -2923,7 +2923,7 @@ function printFinalsBracketPDF() {
     doc.write('</svg>');
 
     doc.write('<scr' + 'ipt>');
-    doc.write('function updateOrient(){var o=document.getElementById("orientSelect").value;document.getElementById("orientStyle").textContent="@media print{@page{margin:8mm;size:"+o+";}}";}');
+    doc.write('function updateOrient(){var o=document.getElementById("orientSelect").value;var h=o==="landscape"?"190mm":"275mm";document.getElementById("orientStyle").textContent="@media print{@page{margin:8mm;size:"+o+";}svg{max-height:"+h+";width:auto;height:auto;}}";}');
     doc.write('function getOrient(){return document.getElementById("orientSelect").value;}');
     doc.write('function downloadPDF() {');
     doc.write('  if (typeof jspdf === "undefined") { alert("PDF 元件載入中，請稍後再試"); return; }');
@@ -3474,8 +3474,6 @@ function openChartView() {
         });
     }
 
-    const hasFinals = hasFinalQualifiers();
-
     // Layout: 2 per row, max 3 rows per page (matching screenshot)
     const cols = 2;
     const maxRowsPerPage = 3;
@@ -3501,18 +3499,6 @@ function openChartView() {
         }
     }
 
-    // Build bracket for each category if needed
-    const allBracketSvgs = [];
-    if (hasFinals) {
-        getFinalsCategories().forEach(cat => {
-            const qualifiers = state.finalQualifiers[cat];
-            if (qualifiers && qualifiers.length >= 2) {
-                const br = buildBracketSVG(qualifiers, pageW);
-                allBracketSvgs.push({ cat, svg: br.svg, height: br.height + 40 });
-            }
-        });
-    }
-
     // Open print window
     const win = window.open('', '_blank');
     const doc = win.document;
@@ -3530,7 +3516,7 @@ function openChartView() {
     doc.write('.btn-pdf { background: #ea4335; color: #fff; border: none; }');
     doc.write('svg { display: block; margin: 0 auto 20px; max-width: 100%; }');
     doc.write('</style>');
-    doc.write('<style id="orientStyle">@media print { @page { margin: 8mm; size: portrait; } }</style>');
+    doc.write('<style id="orientStyle">@media print { @page { margin: 8mm; size: portrait; } svg { max-height: 275mm; width: auto; height: auto; } }</style>');
     doc.write('</head><body>');
     doc.write('<div class="no-print">');
     doc.write('<select id="orientSelect" onchange="updateOrient()"><option value="portrait">直向</option><option value="landscape">橫向</option></select>');
@@ -3581,22 +3567,6 @@ function openChartView() {
         doc.write('</svg></div>');
     });
 
-    // Bracket pages (one per category)
-    allBracketSvgs.forEach((br, bi) => {
-        const bracketPageH = br.height + titleH;
-        const bsvgId = 'chartSvg_bracket_' + bi;
-        allSvgIds.push(bsvgId);
-        let bSvg = '';
-        bSvg += '<text x="15" y="22" font-size="16" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(br.cat) + ' 決賽 — 單淘汰賽</text>';
-        bSvg += '<g transform="translate(0, ' + 40 + ')">' + br.svg + '</g>';
-
-        doc.write('<div' + (bi < allBracketSvgs.length - 1 ? ' class="page-break"' : '') + '>');
-        doc.write('<svg id="' + bsvgId + '" xmlns="http://www.w3.org/2000/svg" width="' + pageW + '" height="' + bracketPageH + '" viewBox="0 0 ' + pageW + ' ' + bracketPageH + '">');
-        doc.write('<rect width="100%" height="100%" fill="white"/>');
-        doc.write(bSvg);
-        doc.write('</svg></div>');
-    });
-
     // Write download script into child window (using split tags to avoid breaking parent)
     var idsJson = JSON.stringify(allSvgIds);
     doc.write('<scr' + 'ipt>');
@@ -3608,7 +3578,7 @@ function openChartView() {
     doc.write('  var a = document.createElement("a");');
     doc.write('  a.href = URL.createObjectURL(b); a.download = "對戰圖.svg"; a.click();');
     doc.write('}');
-    doc.write('function updateOrient(){var o=document.getElementById("orientSelect").value;document.getElementById("orientStyle").textContent="@media print{@page{margin:8mm;size:"+o+";}}";}');
+    doc.write('function updateOrient(){var o=document.getElementById("orientSelect").value;var h=o==="landscape"?"190mm":"275mm";document.getElementById("orientStyle").textContent="@media print{@page{margin:8mm;size:"+o+";}svg{max-height:"+h+";width:auto;height:auto;}}";}');
     doc.write('function getOrient(){return document.getElementById("orientSelect").value;}');
     doc.write('function downloadPDF() {');
     doc.write('  if (typeof jspdf === "undefined") { alert("PDF 元件載入中，請稍後再試"); return; }');
