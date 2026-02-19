@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.17';</script>
+    <script>const APP_VERSION = 'v19.18';</script>
 </head>
 <body>
 
@@ -717,6 +717,7 @@ function createNewEvent() {
     state.finalQualifiers = {};
     state.manualQualify = {};
     state.bracketMatches = {};
+    state.prelimBronze = {};
     state.activeCategory = null;
     state.eventTitle = '';
     state.selectedPoolItem = null;
@@ -836,6 +837,7 @@ const state = {
     finalQualifiers: {},    // { catName: [ { label, name } ] }
     manualQualify: {},      // { "cat_gName": [idx, ...] } — manual tie-break selections
     bracketMatches: {},     // { catName: [ { id, round, matchIdx, p1, p2, s1, s2, winner } ] }
+    prelimBronze: {},       // { catName: "playerName" } — 3-person group's 3rd place
     activeCategory: null,   // Currently selected category in finals tab
     eventTitle: '',         // Custom event title
     eventId: null,          // Multi-event ID
@@ -958,6 +960,10 @@ function getBracketResultsForCategory(cat) {
         const semiFinals = normalMatches.filter(m => m.round === maxRound - 1);
         bronzes = semiFinals.map(m => m.winner ? (m.winner === m.p1 ? m.p2 : m.p1) : null).filter(n => n && n !== '—BYE—' && n !== '—TBD—');
     }
+    // Include prelim bronze (3rd place from 3-person group)
+    if (bronzes.length === 0 && state.prelimBronze && state.prelimBronze[cat]) {
+        bronzes = [state.prelimBronze[cat]];
+    }
     return { champion, runnerUp, bronzes, bronze, fourth, finalMatch, thirdMatch };
 }
 
@@ -1022,6 +1028,7 @@ function takeSnapshot() {
         finalQualifiers: state.finalQualifiers,
         manualQualify: state.manualQualify || {},
         bracketMatches: state.bracketMatches || {},
+        prelimBronze: state.prelimBronze || {},
         activeCategory: state.activeCategory || null,
         eventTitle: state.eventTitle || '',
         scores: collectScores()
@@ -1042,6 +1049,7 @@ function restoreSnapshot(snap) {
     state.finalQualifiers = saved.finalQualifiers || {};
     state.manualQualify = saved.manualQualify || {};
     state.bracketMatches = saved.bracketMatches || {};
+    state.prelimBronze = saved.prelimBronze || {};
     state.activeCategory = saved.activeCategory || null;
     state.eventTitle = saved.eventTitle || '';
     const h1 = document.getElementById('eventTitle');
@@ -1119,6 +1127,7 @@ function saveState() {
             finalQualifiers: state.finalQualifiers,
             manualQualify: state.manualQualify || {},
             bracketMatches: state.bracketMatches || {},
+            prelimBronze: state.prelimBronze || {},
             activeCategory: state.activeCategory || null,
             eventTitle: state.eventTitle || '',
             scores: scores
@@ -1155,6 +1164,7 @@ function loadState() {
         state.manualQualify = saved.manualQualify || {};
         // Migrate flat finalQualifiers/bracketMatches to per-category dict
         migrateFinalQualifiers(saved);
+        state.prelimBronze = saved.prelimBronze || {};
         // Set eventId from event list if not set
         if (!state.eventId) {
             const list = getEventList();
@@ -1932,6 +1942,7 @@ function promoteWinners() {
     }
 
     const allWinners = {};
+    const prelimBronze = {};
     let totalCount = 0;
     for (const cat in state.activeGroups) {
         const groups = state.activeGroups[cat];
@@ -1943,11 +1954,18 @@ function promoteWinners() {
             const groupWinners = qs.map((name, i) => ({ label: `第${i + 1}名`, name }));
             allWinners[finalsKey] = groupWinners;
             totalCount += groupWinners.length;
+
+            // 3-person group: store 3rd place as prelim bronze
+            if (g.members.length === 3 && qs.length === 2) {
+                const third = g.members.find(name => !qs.includes(name));
+                if (third) prelimBronze[finalsKey] = third;
+            }
         });
     }
     if (totalCount === 0) { showToast('無晉級者，請先輸入比分', 'error'); return; }
     state.finalQualifiers = allWinners;
     state.bracketMatches = {};
+    state.prelimBronze = prelimBronze;
 
     // Auto-generate bracket for categories with exactly 2 qualifiers
     // If they come from a 2-person prelim group, auto-fill scores & confirm winner
@@ -3092,6 +3110,7 @@ function saveToExcel() {
         finalQualifiers: state.finalQualifiers,
         manualQualify: state.manualQualify || {},
         bracketMatches: state.bracketMatches || {},
+        prelimBronze: state.prelimBronze || {},
         activeCategory: state.activeCategory || null,
         eventTitle: state.eventTitle || '',
         scores: scores
@@ -3161,6 +3180,7 @@ async function loadFromExcel(event) {
             state.activeGroups = saved.activeGroups || {};
             state.manualQualify = saved.manualQualify || {};
             migrateFinalQualifiers(saved);
+            state.prelimBronze = saved.prelimBronze || {};
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
