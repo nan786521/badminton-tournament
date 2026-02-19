@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.10</title>
+    <title>羽球賽務系統 v19.11</title>
     <meta name="theme-color" content="#1a73e8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -356,7 +356,7 @@
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統 <span style="font-size:14px;opacity:0.6;font-weight:400;">&#9998;</span></h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.10</span>
+    <span id="versionLabel">v19.11</span>
     <div class="header-right">
         <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
         <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
@@ -728,7 +728,7 @@ function createNewEvent() {
     // Reset UI
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = '羽球賽務系統';
-    document.title = '羽球賽務系統 v19.10';
+    document.title = '羽球賽務系統 v19.11';
     const ft = document.getElementById('finalTitle');
     if (ft) ft.value = '';
     refreshPoolList();
@@ -816,7 +816,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.10';
+    document.title = (val || '羽球賽務系統') + ' v19.11';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -1166,7 +1166,7 @@ function loadState() {
         state.eventTitle = saved.eventTitle || '';
         const h1 = document.getElementById('eventTitle');
         if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.10';
+        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.11';
 
         // Rebuild UI
         refreshPoolList();
@@ -1814,27 +1814,27 @@ function renderStandings(cat, gName) {
         const autoQualified = !hasTie && rank < nQualify;
         const isVoluntary = voluntaryPlayers.has(parseInt(idx));
         const isInjury = injuryPlayers.has(parseInt(idx));
-        let note = isVoluntary ? '<span style="color:#ea4335;font-weight:600;">棄</span>' : (isInjury ? '<span style="color:#e67e00;font-weight:600;">傷</span>' : '');
-        if (isTied) note += (note ? ' ' : '') + '<span style="color:#e67e00;font-weight:600;">平手</span>';
+        let note = isVoluntary ? '<span style="color:#ea4335;font-weight:600;">棄（不晉級）</span>' : (isInjury ? '<span style="color:#e67e00;font-weight:600;">傷</span>' : '');
+        if (isTied && !isVoluntary) note += (note ? ' ' : '') + '<span style="color:#e67e00;font-weight:600;">平手</span>';
 
         let rowClass = '';
-        if (autoQualified) rowClass = 'qualified';
+        if (isVoluntary) rowClass = '';
+        else if (autoQualified) rowClass = 'qualified';
         else if (isTied) rowClass = 'tied';
 
-        html += `<tr class="${rowClass}">`;
+        html += `<tr class="${rowClass}"${isVoluntary ? ' style="opacity:0.5;"' : ''}>`;
         if (hasTie) {
-            if (isTied) {
+            if (isTied && !isVoluntary) {
                 const prev = state.manualQualify[groupKey] || [];
                 const checked = prev.includes(parseInt(idx)) ? ' checked' : '';
                 html += `<td><input type="checkbox" class="tie-check" data-group="${groupKey}" data-idx="${idx}"${checked} onchange="onTieCheck('${groupKey}',${nQualify})"></td>`;
-            } else if (rank < [...tiedIndices][0]) {
-                // Above tie group — auto qualified
+            } else if (rank < [...tiedIndices][0] && !isVoluntary) {
                 html += `<td>&#10004;</td>`;
             } else {
                 html += `<td></td>`;
             }
         }
-        html += `<td>${rank + 1}${autoQualified ? ' &#10004;' : ''}</td><td>${alignName(group.members[idx], aw.sw, aw.nw)}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.forfeits || 0}</td><td>${s.pf}</td><td>${s.pa}</td><td>${s.pf - s.pa}</td><td>${note}</td></tr>`;
+        html += `<td>${rank + 1}${autoQualified && !isVoluntary ? ' &#10004;' : ''}</td><td>${alignName(group.members[idx], aw.sw, aw.nw)}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.forfeits || 0}</td><td>${s.pf}</td><td>${s.pa}</td><td>${s.pf - s.pa}</td><td>${note}</td></tr>`;
     });
     html += '</tbody></table>';
     div.innerHTML = html;
@@ -1877,6 +1877,7 @@ function getQualifyCount(nMembers, totalInCat) {
 function getGroupQualifiers(cat, group) {
     const { scores, hasScore } = getScores(cat, group);
     if (!hasScore) return [];
+    const { voluntary: voluntaryPlayers } = collectForfeitPlayers(group);
     const ranked = Object.entries(scores).sort((a, b) => {
         if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
         return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
@@ -1892,13 +1893,14 @@ function getGroupQualifiers(cat, group) {
         const manual = (state.manualQualify && state.manualQualify[groupKey]) || [];
         const result = [];
         ranked.forEach(([idx, s], rank) => {
+            if (voluntaryPlayers.has(parseInt(idx))) return;
             if (rank < minTied) result.push(group.members[idx]);
             else if (sameRecord(s, boundaryScore) && manual.includes(parseInt(idx))) result.push(group.members[idx]);
         });
         return result;
     }
 
-    return ranked.slice(0, nQ).map(([idx]) => group.members[idx]);
+    return ranked.slice(0, nQ).filter(([idx]) => !voluntaryPlayers.has(parseInt(idx))).map(([idx]) => group.members[idx]);
 }
 
 function promoteWinners() {
@@ -3106,7 +3108,7 @@ async function loadFromExcel(event) {
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.10';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.11';
             state.selectedPoolItem = null;
             state.editingKey = null;
             undoStack.length = 0;
