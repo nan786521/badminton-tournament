@@ -1,5 +1,21 @@
 # 羽球賽務系統 — 修改紀錄
 
+## v19.14
+
+### 2026-02-19
+
+#### 低嚴重度 UI/UX 修正（9 項）
+
+- **L1** 版本號改用 `APP_VERSION` 常數統一管理，不再散落 6 處
+- **L2** 暫存池 max-height 改用 `min(px, vh)` 相對單位，跨斷點平滑過渡
+- **L3** 賽事標題輸入框改用 `min(280px, 60vw)`，窄螢幕不溢出
+- **L4** `.score-input` 移除 `!important`，改用高精確度選擇器 `.match-row .score-input`
+- **L5** Toast 加入 `env(safe-area-inset)` fallback，相容不支援的瀏覽器
+- **L7** 空狀態 emoji 加入跨平台 font-family（Apple/Segoe/Noto Color Emoji）
+- **L9** 暗黑模式獎牌卡片文字改為白色，`.medal-label` 對比度提升
+- **L10** 全場總覽表加入 `overflow-x: auto` 容器，手機可橫向捲動
+- **L12** 智慧分組按鈕文字精簡為「智慧分組」，詳細說明移入 title 提示
+
 ## v19.13
 
 ### 2026-02-19

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.13</title>
+    <title>羽球賽務系統</title>
     <meta name="theme-color" content="#1a73e8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -44,7 +44,7 @@
         .header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
         /* Event title inline edit */
-        .event-title-input { font-size: 20px; font-weight: 700; font-family: inherit; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.4); color: #fff; padding: 4px 10px; border-radius: 6px; width: 280px; }
+        .event-title-input { font-size: 20px; font-weight: 700; font-family: inherit; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.4); color: #fff; padding: 4px 10px; border-radius: 6px; width: min(280px, 60vw); }
         .event-title-input::placeholder { color: rgba(255,255,255,0.5); }
 
         /* Theme toggle */
@@ -99,7 +99,7 @@
         @media (max-width: 768px) { .setup-layout { grid-template-columns: 1fr; gap: 12px; } }
 
         /* Pool list */
-        .pool-list { list-style: none; max-height: 300px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 6px; }
+        .pool-list { list-style: none; max-height: min(300px, 40vh); overflow-y: auto; border: 1.5px solid var(--border); border-radius: 6px; }
         .pool-item { padding: 12px 16px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.15s; }
         .pool-item:hover { background: var(--hover-bg); }
         .pool-item.selected { background: var(--selected-bg); border-left: 3px solid #1a73e8; }
@@ -116,7 +116,7 @@
         .match-no { background: #ea4335; color: #fff; font-size: 12px; font-weight: 700; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .player-name { font-weight: 600; min-width: 0; flex: 1; text-align: right; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .player-name.right { text-align: left; }
-        .score-input { width: 70px !important; flex-shrink: 0; text-align: center; font-weight: 700; font-size: 16px; padding: 6px 4px; background: var(--score-input-bg); color: var(--text); border: 1.5px solid var(--border-input); border-radius: 6px; }
+        .match-row .score-input, input.score-input[type="number"] { width: 70px; flex-shrink: 0; text-align: center; font-weight: 700; font-size: 16px; padding: 6px 4px; background: var(--score-input-bg); color: var(--text); border: 1.5px solid var(--border-input); border-radius: 6px; }
         .vs-label { font-weight: 700; color: var(--text-placeholder); font-size: 13px; flex-shrink: 0; }
         .ff-badge { display: inline-block; font-size: 13px; font-weight: 700; min-width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 4px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 2px; padding: 0 4px; position: relative; }
         .ff-badge::before { content: ''; position: absolute; top: -6px; bottom: -6px; left: -6px; right: -6px; }
@@ -185,9 +185,10 @@
         .medal-item.gold { background: linear-gradient(135deg, #fff8e1, #ffecb3); border: 1.5px solid #f9ab00; }
         .medal-item.silver { background: linear-gradient(135deg, #f5f5f5, #e0e0e0); border: 1.5px solid #9e9e9e; }
         .medal-item.bronze { background: linear-gradient(135deg, #fbe9e7, #ffccbc); border: 1.5px solid #bf360c; }
-        [data-theme="dark"] .medal-item.gold { background: linear-gradient(135deg, #5a4d10, #7a6c20); border-color: #c9a000; }
-        [data-theme="dark"] .medal-item.silver { background: linear-gradient(135deg, #3a3a5a, #5a5a7a); border-color: #8a8aaa; }
-        [data-theme="dark"] .medal-item.bronze { background: linear-gradient(135deg, #5a3820, #7a4c30); border-color: #c06020; }
+        [data-theme="dark"] .medal-item.gold { background: linear-gradient(135deg, #5a4d10, #7a6c20); border-color: #c9a000; color: #fff; }
+        [data-theme="dark"] .medal-item.silver { background: linear-gradient(135deg, #3a3a5a, #5a5a7a); border-color: #8a8aaa; color: #fff; }
+        [data-theme="dark"] .medal-item.bronze { background: linear-gradient(135deg, #5a3820, #7a4c30); border-color: #c06020; color: #fff; }
+        [data-theme="dark"] .medal-label { color: rgba(255,255,255,0.7); }
         .medal-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
         .medal-name { font-size: 16px; font-weight: 700; }
         .result-print-btn { margin-top: 16px; }
@@ -203,13 +204,13 @@
         .progress-group.done { color: var(--qualified-text); font-weight: 600; }
 
         /* Toast */
-        .toast { position: fixed; top: max(20px, env(safe-area-inset-top)); right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; z-index: 1000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; max-width: calc(100vw - 40px); box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+        .toast { position: fixed; top: 20px; top: max(20px, env(safe-area-inset-top, 0px)); right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; z-index: 1000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; max-width: calc(100vw - 40px); box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.success { background: #34a853; }
         .toast.error { background: #ea4335; }
         .toast.info { background: #1a73e8; }
         .toast.warning { background: #f9ab00; color: #333; }
-        @media (max-width: 480px) { .toast { top: auto; bottom: max(20px, env(safe-area-inset-bottom)); right: 12px; left: 12px; max-width: none; text-align: center; } }
+        @media (max-width: 480px) { .toast { top: auto; bottom: 20px; bottom: max(20px, env(safe-area-inset-bottom, 0px)); right: 12px; left: 12px; max-width: none; text-align: center; } }
 
         /* File input */
         .file-input-wrapper { position: relative; }
@@ -228,7 +229,7 @@
 
         /* Empty state */
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-placeholder); }
-        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; line-height: 1.2; }
         .empty-state p { font-size: 15px; }
 
         /* Action bar */
@@ -244,7 +245,7 @@
             .control-bar { padding: 12px; gap: 8px; }
             .control-bar .title { width: 100%; margin-bottom: 4px; }
             .empty-state { padding: 40px 16px; }
-            .pool-list { max-height: 220px; }
+            .pool-list { max-height: min(220px, 35vh); }
             .finals-list { max-height: 280px; }
             .bracket-round { margin-right: 20px; min-width: 180px; }
             .standings-table th, .standings-table td { padding: 6px 4px; font-size: 12px; }
@@ -285,7 +286,7 @@
 
             /* Match row */
             .match-row { gap: 6px; padding: 10px 0; }
-            .score-input { width: 56px !important; font-size: 16px; padding: 8px 4px; }
+            .match-row .score-input, input.score-input[type="number"] { width: 56px; font-size: 16px; padding: 8px 4px; }
             .player-name { min-width: 0; flex: 1; font-size: 13px; }
             .vs-label { font-size: 12px; }
             .match-no { width: 24px; height: 24px; font-size: 11px; }
@@ -296,7 +297,7 @@
             .category-header { padding: 10px 12px; }
 
             /* Pool & Finals lists */
-            .pool-list { max-height: 180px; }
+            .pool-list { max-height: min(180px, 30vh); }
             .pool-item { padding: 10px 12px; }
             .finals-list { max-height: 200px; }
             .finals-item { padding: 10px 12px; font-size: 14px; }
@@ -350,13 +351,14 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
+    <script>const APP_VERSION = 'v19.14';</script>
 </head>
 <body>
 
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統 <span style="font-size:14px;opacity:0.6;font-weight:400;">&#9998;</span></h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.13</span>
+    <span id="versionLabel"></span>
     <div class="header-right">
         <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
         <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
@@ -419,8 +421,8 @@
                     <button class="btn btn-danger" onclick="clearAllPool()" style="margin-left:auto;">全部清空</button>
                 </div>
             </div>
-            <button class="btn btn-success btn-lg" style="width:100%; margin-top: 8px;" onclick="startTournament()">
-                智慧分組（自動處理 5 人三角 + 直線）
+            <button class="btn btn-success btn-lg" style="width:100%; margin-top: 8px;" onclick="startTournament()" title="自動處理 5 人三角 + 直線分組">
+                智慧分組
             </button>
         </div>
     </div>
@@ -541,6 +543,9 @@ function updateThemeUI() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // L1: Set version from constant
+    document.title = '羽球賽務系統 ' + APP_VERSION;
+    document.getElementById('versionLabel').textContent = APP_VERSION;
     updateThemeUI();
     migrateToMultiEvent();
     loadState();
@@ -723,7 +728,7 @@ function createNewEvent() {
     // Reset UI
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = '羽球賽務系統';
-    document.title = '羽球賽務系統 v19.13';
+    document.title = '羽球賽務系統 ' + APP_VERSION;
     const ft = document.getElementById('finalTitle');
     if (ft) ft.value = '';
     refreshPoolList();
@@ -811,7 +816,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.13';
+    document.title = (val || '羽球賽務系統') + ' ' + APP_VERSION;
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -1161,7 +1166,7 @@ function loadState() {
         state.eventTitle = saved.eventTitle || '';
         const h1 = document.getElementById('eventTitle');
         if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.13';
+        document.title = (state.eventTitle || '羽球賽務系統') + ' ' + APP_VERSION;
 
         // Rebuild UI
         refreshPoolList();
@@ -2007,7 +2012,7 @@ function renderFinalsOverview() {
     const area = document.getElementById('finalsOverviewContent');
     const cats = getFinalsCategories();
     if (cats.length === 0) { area.innerHTML = '<p class="empty-state">尚無晉級資料</p>'; return; }
-    let html = '<table class="overview-table"><tr><th>組別</th><th>晉級人數</th><th>賽程狀態</th><th>冠軍</th><th>亞軍</th><th>季軍</th><th></th></tr>';
+    let html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="overview-table"><tr><th>組別</th><th>晉級人數</th><th>賽程狀態</th><th>冠軍</th><th>亞軍</th><th>季軍</th><th></th></tr>';
     cats.forEach(cat => {
         const qualifiers = state.finalQualifiers[cat] || [];
         const result = getBracketResultsForCategory(cat);
@@ -2029,7 +2034,7 @@ function renderFinalsOverview() {
         html += '<td>' + champion + '</td><td>' + runnerUp + '</td><td>' + bronze + '</td>';
         html += '<td><button class="btn btn-light" style="padding:4px 12px;font-size:12px;" onclick="switchFinalsCategory(\'' + escapeXml(cat).replace(/'/g, "\\'") + '\')">管理</button></td></tr>';
     });
-    html += '</table>';
+    html += '</table></div>';
     area.innerHTML = html;
 }
 
@@ -3103,7 +3108,7 @@ async function loadFromExcel(event) {
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.13';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' ' + APP_VERSION;
             state.selectedPoolItem = null;
             state.editingKey = null;
             undoStack.length = 0;
