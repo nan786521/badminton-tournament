@@ -153,6 +153,7 @@
         [data-theme="dark"] .medal-item.bronze { background: linear-gradient(135deg, #3a2520, #4a3020); }
         .medal-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
         .medal-name { font-size: 16px; font-weight: 700; }
+        .result-print-btn { margin-top: 16px; }
 
         /* Toast */
         .toast { position: fixed; top: max(20px, env(safe-area-inset-top)); right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 1000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; max-width: calc(100vw - 40px); }
@@ -1504,39 +1505,187 @@ function confirmBracketWinner(matchId) {
     showToast(`勝者：${winner}`, 'success');
 }
 
+function getBracketResults() {
+    const matches = state.bracketMatches;
+    if (!matches || matches.length === 0) return null;
+
+    const maxRound = Math.max(...matches.map(m => m.round));
+    const finalMatch = matches.find(m => m.round === maxRound);
+    if (!finalMatch || !finalMatch.winner) return null;
+
+    const champion = finalMatch.winner;
+    const runnerUp = finalMatch.winner === finalMatch.p1 ? finalMatch.p2 : finalMatch.p1;
+    const semiFinals = matches.filter(m => m.round === maxRound - 1);
+    const bronzes = semiFinals.map(m => m.winner ? (m.winner === m.p1 ? m.p2 : m.p1) : null).filter(Boolean);
+
+    return { champion, runnerUp, bronzes, finalMatch };
+}
+
 function renderBracketResult() {
     const area = document.getElementById('bracketResultArea');
     if (!area) return;
     area.innerHTML = '';
 
-    const matches = state.bracketMatches;
-    if (!matches || matches.length === 0) return;
-
-    const maxRound = Math.max(...matches.map(m => m.round));
-    const finalMatch = matches.find(m => m.round === maxRound);
-    if (!finalMatch || !finalMatch.winner) return;
-
-    const champion = finalMatch.winner;
-    const runnerUp = finalMatch.winner === finalMatch.p1 ? finalMatch.p2 : finalMatch.p1;
-
-    // Bronze: losers of semi-finals
-    const semiFinals = matches.filter(m => m.round === maxRound - 1);
-    const bronzes = semiFinals.map(m => m.winner ? (m.winner === m.p1 ? m.p2 : m.p1) : null).filter(Boolean);
+    const result = getBracketResults();
+    if (!result) return;
 
     const resultCard = document.createElement('div');
     resultCard.className = 'bracket-result-card';
     resultCard.innerHTML = '<h3>比賽結果</h3>';
 
     let html = '<div class="medal-row">';
-    html += `<div class="medal-item gold"><div class="medal-label">🥇 冠軍</div><div class="medal-name">${champion}</div></div>`;
-    html += `<div class="medal-item silver"><div class="medal-label">🥈 亞軍</div><div class="medal-name">${runnerUp}</div></div>`;
-    if (bronzes.length > 0) {
-        html += `<div class="medal-item bronze"><div class="medal-label">🥉 季軍</div><div class="medal-name">${bronzes.join('、')}</div></div>`;
+    html += `<div class="medal-item gold"><div class="medal-label">🥇 冠軍</div><div class="medal-name">${result.champion}</div></div>`;
+    html += `<div class="medal-item silver"><div class="medal-label">🥈 亞軍</div><div class="medal-name">${result.runnerUp}</div></div>`;
+    if (result.bronzes.length > 0) {
+        html += `<div class="medal-item bronze"><div class="medal-label">🥉 季軍</div><div class="medal-name">${result.bronzes.join('、')}</div></div>`;
     }
     html += '</div>';
+    html += '<div class="result-print-btn"><button class="btn btn-danger" onclick="printResultAnnouncement()">列印 / 下載成績公告</button></div>';
 
     resultCard.innerHTML += html;
     area.appendChild(resultCard);
+}
+
+function printResultAnnouncement() {
+    const result = getBracketResults();
+    if (!result) { showToast('尚無比賽結果', 'error'); return; }
+
+    const eventTitle = getEventTitle();
+    const finalTitle = document.getElementById('finalTitle').value.trim() || '';
+    const today = new Date();
+    const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
+
+    // Collect all match results for the detail table
+    const matches = state.bracketMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
+    const rounds = Math.max(...state.bracketMatches.map(m => m.round)) + 1;
+    const roundNames = ['第一輪', '第二輪', '八強', '四強', '準決賽', '決賽'];
+
+    const win = window.open('', '_blank');
+    const doc = win.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+    doc.write('<title>' + escapeXml(eventTitle) + ' 成績公告</title>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></scr' + 'ipt>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+    doc.write('<style>');
+    doc.write('@media print { .no-print { display: none !important; } @page { margin: 15mm; } }');
+    doc.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
+    doc.write('body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #fff; color: #222; }');
+    doc.write('.no-print { text-align: center; padding: 16px; background: #f5f5f5; border-bottom: 1px solid #ddd; }');
+    doc.write('.no-print button { padding: 10px 24px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; margin: 0 6px; font-weight: 600; }');
+    doc.write('.btn-print { background: #1a73e8; color: #fff; }');
+    doc.write('.btn-pdf { background: #ea4335; color: #fff; }');
+    doc.write('.announcement { max-width: 700px; margin: 0 auto; padding: 40px 50px; }');
+    // Header with double border
+    doc.write('.ann-header { text-align: center; padding-bottom: 24px; margin-bottom: 28px; border-bottom: 3px double #333; }');
+    doc.write('.ann-event { font-size: 28px; font-weight: 900; letter-spacing: 4px; margin-bottom: 6px; }');
+    doc.write('.ann-subtitle { font-size: 20px; font-weight: 700; letter-spacing: 2px; color: #444; margin-bottom: 8px; }');
+    doc.write('.ann-date { font-size: 14px; color: #666; }');
+    // Podium
+    doc.write('.podium { display: flex; justify-content: center; align-items: flex-end; gap: 16px; margin: 32px 0; }');
+    doc.write('.podium-item { text-align: center; border-radius: 8px; padding: 16px 24px; min-width: 140px; }');
+    doc.write('.podium-item.gold { background: linear-gradient(180deg, #fff8e1, #ffe082); border: 2px solid #f9ab00; order: 2; transform: scale(1.1); }');
+    doc.write('.podium-item.silver { background: linear-gradient(180deg, #fafafa, #e0e0e0); border: 2px solid #9e9e9e; order: 1; }');
+    doc.write('.podium-item.bronze { background: linear-gradient(180deg, #fff3e0, #ffcc80); border: 2px solid #ef6c00; order: 3; }');
+    doc.write('.podium-rank { font-size: 28px; margin-bottom: 4px; }');
+    doc.write('.podium-label { font-size: 13px; color: #555; font-weight: 600; margin-bottom: 4px; }');
+    doc.write('.podium-name { font-size: 20px; font-weight: 900; }');
+    // Match detail table
+    doc.write('.match-section { margin-top: 32px; }');
+    doc.write('.match-section h3 { font-size: 16px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #333; }');
+    doc.write('table { width: 100%; border-collapse: collapse; font-size: 14px; }');
+    doc.write('th { background: #f5f5f5; padding: 8px 12px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; }');
+    doc.write('td { padding: 8px 12px; border-bottom: 1px solid #eee; }');
+    doc.write('tr:last-child td { border-bottom: 2px solid #ddd; }');
+    doc.write('.winner-cell { font-weight: 700; color: #1a73e8; }');
+    doc.write('.score-cell { text-align: center; font-weight: 600; font-size: 15px; }');
+    doc.write('.round-header td { background: #f9f9f9; font-weight: 700; color: #333; border-bottom: 1px solid #ddd; }');
+    // Footer
+    doc.write('.ann-footer { margin-top: 36px; padding-top: 20px; border-top: 3px double #333; text-align: center; font-size: 13px; color: #888; }');
+    doc.write('</style></head><body>');
+
+    // Toolbar
+    doc.write('<div class="no-print">');
+    doc.write('<button class="btn-print" onclick="window.print()">列印</button>');
+    doc.write('<button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button>');
+    doc.write('</div>');
+
+    // Announcement body
+    doc.write('<div class="announcement" id="annContent">');
+
+    // Header
+    doc.write('<div class="ann-header">');
+    doc.write('<div class="ann-event">' + escapeXml(eventTitle) + '</div>');
+    if (finalTitle) doc.write('<div class="ann-subtitle">' + escapeXml(finalTitle) + '</div>');
+    doc.write('<div class="ann-subtitle">成績公告</div>');
+    doc.write('<div class="ann-date">' + dateStr + '</div>');
+    doc.write('</div>');
+
+    // Podium
+    doc.write('<div class="podium">');
+    doc.write('<div class="podium-item silver"><div class="podium-rank">🥈</div><div class="podium-label">亞軍</div><div class="podium-name">' + escapeXml(result.runnerUp) + '</div></div>');
+    doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + escapeXml(result.champion) + '</div></div>');
+    if (result.bronzes.length > 0) {
+        doc.write('<div class="podium-item bronze"><div class="podium-rank">🥉</div><div class="podium-label">季軍</div><div class="podium-name">' + escapeXml(result.bronzes.join('、')) + '</div></div>');
+    }
+    doc.write('</div>');
+
+    // Match details table
+    if (matches.length > 0) {
+        doc.write('<div class="match-section">');
+        doc.write('<h3>對戰明細</h3>');
+        doc.write('<table>');
+        doc.write('<tr><th>場次</th><th>選手</th><th style="text-align:center">比分</th><th>選手</th><th>勝者</th></tr>');
+
+        let lastRound = -1;
+        let matchNum = 1;
+        matches.forEach(m => {
+            if (m.round !== lastRound) {
+                lastRound = m.round;
+                const rn = rounds - m.round <= roundNames.length ? roundNames[roundNames.length - (rounds - m.round)] : '第 ' + (m.round + 1) + ' 輪';
+                doc.write('<tr class="round-header"><td colspan="5">' + rn + '</td></tr>');
+            }
+            const w = m.winner;
+            const s = m.s1 && m.s2 ? m.s1 + ' : ' + m.s2 : '-';
+            doc.write('<tr>');
+            doc.write('<td>' + matchNum + '</td>');
+            doc.write('<td' + (w === m.p1 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p1) + '</td>');
+            doc.write('<td class="score-cell">' + s + '</td>');
+            doc.write('<td' + (w === m.p2 ? ' class="winner-cell"' : '') + '>' + escapeXml(m.p2) + '</td>');
+            doc.write('<td class="winner-cell">' + escapeXml(w) + '</td>');
+            doc.write('</tr>');
+            matchNum++;
+        });
+        doc.write('</table>');
+        doc.write('</div>');
+    }
+
+    // Footer
+    doc.write('<div class="ann-footer">');
+    doc.write(escapeXml(eventTitle) + ' 大會製');
+    doc.write('</div>');
+
+    doc.write('</div>'); // .announcement
+
+    // PDF download script
+    doc.write('<scr' + 'ipt>');
+    doc.write('function downloadPDF() {');
+    doc.write('  var el = document.getElementById("annContent");');
+    doc.write('  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#fff" }).then(function(cv) {');
+    doc.write('    var imgData = cv.toDataURL("image/jpeg", 0.92);');
+    doc.write('    var pdf = new jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });');
+    doc.write('    var pw = 210, ph = 297, m = 10;');
+    doc.write('    var uw = pw - m * 2, uh = ph - m * 2;');
+    doc.write('    var r = Math.min(uw / cv.width, uh / cv.height);');
+    doc.write('    var iw = cv.width * r, ih = cv.height * r;');
+    doc.write('    pdf.addImage(imgData, "JPEG", m + (uw - iw) / 2, m, iw, ih, undefined, "FAST");');
+    doc.write('    pdf.save("' + escapeXml(eventTitle) + ' 成績公告.pdf");');
+    doc.write('  });');
+    doc.write('}');
+    doc.write('</scr' + 'ipt>');
+
+    doc.write('</body></html>');
+    doc.close();
 }
 
 function generateFinalsScoreTable() {
