@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羽球賽務系統 v19.7</title>
+    <title>羽球賽務系統 v19.8</title>
     <meta name="theme-color" content="#1a73e8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -71,7 +71,8 @@
             font-size: 16px; font-family: inherit; transition: border-color 0.2s;
             background: var(--input-bg); color: var(--text);
         }
-        input:focus, textarea:focus, select:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.1); }
+        input:focus, textarea:focus, select:focus { outline: 2px solid #1a73e8; outline-offset: -1px; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.1); }
+        input:focus:not(:focus-visible), textarea:focus:not(:focus-visible), select:focus:not(:focus-visible) { outline: none; }
         textarea { resize: vertical; min-height: 120px; }
 
         /* Buttons */
@@ -112,19 +113,26 @@
         .match-no { background: #ea4335; color: #fff; font-size: 12px; font-weight: 700; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .player-name { font-weight: 600; min-width: 100px; text-align: right; font-size: 14px; }
         .player-name.right { text-align: left; }
-        .score-input { width: 70px !important; text-align: center; font-weight: 700; font-size: 16px; padding: 6px 4px; background: var(--score-input-bg); color: var(--text); }
+        .score-input { width: clamp(56px, 14vw, 70px); text-align: center; font-weight: 700; font-size: 16px; padding: 8px 6px; background: var(--score-input-bg); color: var(--text); border-radius: 6px; }
         .vs-label { font-weight: 700; color: var(--text-placeholder); font-size: 13px; }
-        .ff-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; min-width: 36px; min-height: 36px; text-align: center; border-radius: 6px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 3px; padding: 0 4px; }
+        .ff-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; min-width: 44px; min-height: 44px; text-align: center; border-radius: 6px; cursor: pointer; user-select: none; vertical-align: middle; margin: 0 2px; padding: 0 6px; transition: transform 0.1s; }
+        .ff-badge:active { transform: scale(0.9); }
         .ff-badge[data-ff=""] { color: var(--text-placeholder); opacity: 0.5; border: 1px dashed var(--border-input); }
         .ff-badge[data-ff="injury"] { background: #fff3e0; color: #e67e00; border: 1px solid #e67e00; opacity: 1; }
         .ff-badge[data-ff="voluntary"] { background: #fde8e8; color: #ea4335; border: 1px solid #ea4335; opacity: 1; }
-        .match-row.has-forfeit .player-name.forfeited-injury { color: #e67e00; }
-        .match-row.has-forfeit .player-name.forfeited-voluntary { text-decoration: line-through; color: var(--text-placeholder); }
+        .match-row.has-forfeit .player-name.forfeited-injury { color: #e67e00; background: rgba(230, 126, 0, 0.12); padding: 2px 6px; border-radius: 4px; }
+        .match-row.has-forfeit .player-name.forfeited-voluntary { text-decoration: line-through; color: #ea4335; background: rgba(234, 67, 53, 0.1); padding: 2px 6px; border-radius: 4px; }
         .match-row.has-forfeit .score-input.forfeited-voluntary { opacity: 0.4; }
+        [data-theme="dark"] .match-row.has-forfeit .player-name.forfeited-injury { background: rgba(230, 126, 0, 0.2); }
+        [data-theme="dark"] .match-row.has-forfeit .player-name.forfeited-voluntary { color: #ff6b6b; background: rgba(234, 67, 53, 0.18); }
 
         /* Control bar */
         .control-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px; background: var(--bg-card); border-radius: 10px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); align-items: center; }
         .control-bar .title { font-weight: 700; font-size: 16px; margin-right: auto; }
+        .ctrl-primary { width: 100%; }
+        .ctrl-primary .btn { width: 100%; font-size: 15px; padding: 14px; }
+        .ctrl-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .ctrl-group .file-input-wrapper { display: inline-flex; }
 
         /* Finals */
         .finals-list { list-style: none; border: 1.5px solid var(--border); border-radius: 6px; max-height: 400px; overflow-y: auto; }
@@ -141,7 +149,7 @@
         .bracket-slot.winner { background: var(--qualified-bg); color: var(--qualified-text); }
         .bracket-slot .seed { color: var(--text-placeholder); font-size: 11px; }
         .bracket-player-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .bracket-score { width: 48px; padding: 4px 2px; text-align: center; font-size: 14px; font-weight: 700; border: 1.5px solid var(--border-input); border-radius: 4px; background: var(--score-input-bg); color: var(--text); flex-shrink: 0; }
+        .bracket-score { width: 52px; padding: 6px 4px; text-align: center; font-size: 14px; font-weight: 700; border: 1.5px solid var(--border-input); border-radius: 6px; background: var(--score-input-bg); color: var(--text); flex-shrink: 0; }
         .bracket-score::placeholder { font-size: 10px; font-weight: 400; color: var(--text-placeholder); }
         .bracket-score:disabled { opacity: 0.3; }
         .bracket-confirm { display: block; width: 100%; padding: 4px; font-size: 11px; font-weight: 600; border: none; background: linear-gradient(90deg, #1a73e8, #4285f4); color: #fff; cursor: pointer; transition: opacity 0.2s; }
@@ -154,9 +162,9 @@
         .medal-item.gold { background: linear-gradient(135deg, #fff8e1, #ffecb3); border: 1.5px solid #f9ab00; }
         .medal-item.silver { background: linear-gradient(135deg, #f5f5f5, #e0e0e0); border: 1.5px solid #9e9e9e; }
         .medal-item.bronze { background: linear-gradient(135deg, #fbe9e7, #ffccbc); border: 1.5px solid #bf360c; }
-        [data-theme="dark"] .medal-item.gold { background: linear-gradient(135deg, #3a3520, #4a4020); }
-        [data-theme="dark"] .medal-item.silver { background: linear-gradient(135deg, #2a2a3a, #3a3a4a); }
-        [data-theme="dark"] .medal-item.bronze { background: linear-gradient(135deg, #3a2520, #4a3020); }
+        [data-theme="dark"] .medal-item.gold { background: linear-gradient(135deg, #5a4d10, #7a6c20); border-color: #c9a000; }
+        [data-theme="dark"] .medal-item.silver { background: linear-gradient(135deg, #3a3a5a, #5a5a7a); border-color: #8a8aaa; }
+        [data-theme="dark"] .medal-item.bronze { background: linear-gradient(135deg, #5a3820, #7a4c30); border-color: #c06020; }
         .medal-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
         .medal-name { font-size: 16px; font-weight: 700; }
         .result-print-btn { margin-top: 16px; }
@@ -164,19 +172,21 @@
         /* Progress panel */
         .progress-panel { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
         .progress-summary { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 8px; }
-        .progress-bar-outer { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
-        .progress-bar-inner { height: 100%; background: linear-gradient(90deg, #1a73e8, #34a853); border-radius: 4px; transition: width 0.4s ease; width: 0; }
+        .progress-bar-outer { height: 20px; background: var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 10px; position: relative; }
+        .progress-bar-inner { height: 100%; background: linear-gradient(90deg, #1a73e8, #34a853); border-radius: 10px; transition: width 0.4s ease; width: 0; display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+        .progress-bar-text { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text); pointer-events: none; }
         .progress-detail { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--text-secondary); }
         .progress-group { display: inline-flex; align-items: center; gap: 4px; }
         .progress-group.done { color: var(--qualified-text); font-weight: 600; }
 
         /* Toast */
-        .toast { position: fixed; top: max(20px, env(safe-area-inset-top)); right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 1000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; max-width: calc(100vw - 40px); }
+        .toast { position: fixed; top: max(20px, env(safe-area-inset-top)); right: 20px; background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; z-index: 1000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; max-width: calc(100vw - 40px); box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.success { background: #34a853; }
         .toast.error { background: #ea4335; }
         .toast.info { background: #1a73e8; }
         .toast.warning { background: #f9ab00; color: #333; }
+        @media (max-width: 480px) { .toast { top: auto; bottom: max(20px, env(safe-area-inset-bottom)); right: 12px; left: 12px; max-width: none; text-align: center; } }
 
         /* File input */
         .file-input-wrapper { position: relative; }
@@ -230,22 +240,24 @@
             .card h3 { font-size: 15px; }
             textarea { min-height: 80px; }
 
-            /* Control bar → grid layout */
-            .control-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; }
-            .control-bar .title { grid-column: 1 / -1; font-size: 15px; margin: 0 0 4px 0; }
-            .control-bar #saveIndicator { grid-column: 1 / -1; }
-            .control-bar .btn { width: 100%; font-size: 13px; padding: 10px 8px; }
-            .control-bar .btn-primary { grid-column: 1 / -1; }
-            .control-bar .file-input-wrapper { width: 100%; }
-            .control-bar .file-input-wrapper .btn { width: 100%; }
+            /* Control bar → grouped layout */
+            .control-bar { padding: 10px; gap: 8px; }
+            .control-bar .title { width: 100%; font-size: 15px; margin: 0 0 4px 0; }
+            .control-bar #saveIndicator { width: 100%; }
+            .ctrl-primary { margin-bottom: 4px; }
+            .ctrl-primary .btn { font-size: 14px; padding: 12px; }
+            .ctrl-group { gap: 6px; padding: 6px 0; border-top: 1px solid var(--border-dotted); width: 100%; }
+            .ctrl-group .btn { flex: 1 1 calc(50% - 3px); font-size: 13px; padding: 10px 6px; }
+            .ctrl-group .file-input-wrapper { flex: 1 1 calc(50% - 3px); }
+            .ctrl-group .file-input-wrapper .btn { width: 100%; }
 
             /* Action bar → 2-col grid */
             .action-bar { gap: 6px; }
             .action-bar .btn { flex: 1 1 calc(50% - 3px); font-size: 13px; padding: 10px 6px; }
 
-            /* Match row */
-            .match-row { gap: 6px; padding: 10px 0; }
-            .score-input { width: 56px !important; font-size: 16px; padding: 8px 4px; }
+            /* Match row — prevent wrapping misalignment */
+            .match-row { gap: 4px; padding: 10px 0; flex-wrap: nowrap; overflow-x: auto; }
+            .score-input { width: 56px; font-size: 16px; padding: 8px 4px; }
             .player-name { min-width: 0; flex: 1; font-size: 13px; }
             .vs-label { font-size: 12px; }
             .match-no { width: 24px; height: 24px; font-size: 11px; }
@@ -266,10 +278,11 @@
             .bracket-round { margin-right: 16px; min-width: 150px; gap: 12px; }
             .bracket-slot { padding: 6px 8px; font-size: 12px; }
 
-            /* Standings table */
-            .standings-table { font-size: 11px; }
-            .standings-table th, .standings-table td { padding: 5px 3px; }
-            .tie-check { width: 20px; height: 20px; }
+            /* Standings table — keep readable on mobile */
+            .standings-table { font-size: 12px; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .standings-table thead, .standings-table tbody, .standings-table tr { display: table; width: 100%; table-layout: auto; }
+            .standings-table th, .standings-table td { padding: 6px 4px; white-space: nowrap; }
+            .tie-check { width: 22px; height: 22px; }
 
             /* Setup */
             .setup-layout { gap: 12px; }
@@ -281,7 +294,9 @@
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; }
         .modal-card { background: var(--bg-card); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-card h3 { margin-bottom: 16px; font-size: 18px; }
-        .modal-close { position: absolute; top: 12px; right: 16px; font-size: 22px; cursor: pointer; color: var(--text-muted); background: none; border: none; line-height: 1; }
+        .modal-close { position: absolute; top: 12px; right: 12px; font-size: 24px; cursor: pointer; color: var(--text-muted); background: none; border: none; line-height: 1; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.15s; }
+        .modal-close:hover { background: var(--hover-bg); color: var(--text); }
+        .modal-close:focus { outline: 2px solid #1a73e8; outline-offset: 1px; }
 
         /* QR Code */
         .qr-container { text-align: center; }
@@ -313,7 +328,7 @@
 <div class="header">
     <h1 id="eventTitle" title="點擊編輯賽事名稱" onclick="editEventTitle()" style="cursor:pointer;">羽球賽務系統</h1>
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
-    <span id="versionLabel">v19.7</span>
+    <span id="versionLabel">v19.8</span>
     <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
     <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
     <button class="theme-toggle" onclick="toggleTheme()">
@@ -322,14 +337,14 @@
     </button>
 </div>
 
-<div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('setup')">1. 名單設定</button>
-    <button class="tab-btn" onclick="switchTab('scoring')">2. 預賽計分</button>
-    <button class="tab-btn" onclick="switchTab('finals')">3. 決賽</button>
+<div class="tabs" role="tablist">
+    <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-setup" onclick="switchTab('setup')">1. 名單設定</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-scoring" onclick="switchTab('scoring')">2. 預賽計分</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-finals" onclick="switchTab('finals')">3. 決賽</button>
 </div>
 
 <!-- Tab 1: Setup -->
-<div id="tab-setup" class="tab-content active">
+<div id="tab-setup" class="tab-content active" role="tabpanel">
     <div class="setup-layout">
         <div>
             <div class="card">
@@ -382,31 +397,37 @@
 </div>
 
 <!-- Tab 2: Scoring -->
-<div id="tab-scoring" class="tab-content">
+<div id="tab-scoring" class="tab-content" role="tabpanel">
     <div class="control-bar">
         <span class="title">預賽控制台</span>
         <span id="saveIndicator" style="font-size:12px;color:var(--text-hint);"></span>
-        <button class="btn btn-light" id="undoBtn" onclick="undo()" disabled title="復原 (Ctrl+Z)">↩ 復原</button>
-        <button class="btn btn-light" id="redoBtn" onclick="redo()" disabled title="重做 (Ctrl+Y)">↪ 重做</button>
-        <button class="btn btn-success" onclick="saveToExcel()">存檔</button>
-        <div class="file-input-wrapper">
-            <button class="btn btn-light" style="position:relative;">載入存檔
-                <input type="file" accept=".xlsx,.xls" onchange="loadFromExcel(event)">
-            </button>
+        <div class="ctrl-primary">
+            <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
         </div>
-        <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
-        <button class="btn btn-danger" onclick="generateFullReport()">綜合報表</button>
-        <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
-        <button class="btn btn-light" onclick="generatePrelimSheets()">產生出賽單</button>
-        <button class="btn btn-primary" onclick="promoteWinners()">結算冠軍 → 送入決賽區</button>
-        <button class="btn btn-light" onclick="captureScreenshot('scoringArea')">截圖</button>
+        <div class="ctrl-group">
+            <button class="btn btn-light" id="undoBtn" onclick="undo()" disabled title="復原 (Ctrl+Z)">&#x21A9;&#xFE0E; 復原</button>
+            <button class="btn btn-light" id="redoBtn" onclick="redo()" disabled title="重做 (Ctrl+Y)">&#x21AA;&#xFE0E; 重做</button>
+            <button class="btn btn-success" onclick="saveToExcel()">存檔</button>
+            <div class="file-input-wrapper">
+                <button class="btn btn-light" style="position:relative;">載入存檔
+                    <input type="file" accept=".xlsx,.xls" onchange="loadFromExcel(event)">
+                </button>
+            </div>
+        </div>
+        <div class="ctrl-group">
+            <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
+            <button class="btn btn-danger" onclick="generateFullReport()">綜合報表</button>
+            <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
+            <button class="btn btn-light" onclick="generatePrelimSheets()">產生出賽單</button>
+            <button class="btn btn-light" onclick="captureScreenshot('scoringArea')">截圖</button>
+        </div>
     </div>
     <div id="progressPanel" class="progress-panel" style="display:none">
         <div class="progress-summary">
             <span>整體進度：<strong id="progressPct">0%</strong></span>
             <span>已完成 <strong id="progressDone">0</strong> / <strong id="progressTotal">0</strong> 場</span>
         </div>
-        <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+        <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div><div class="progress-bar-text" id="progressBarText"></div></div>
         <div id="progressDetail"></div>
     </div>
     <div id="scoringArea">
@@ -418,7 +439,7 @@
 </div>
 
 <!-- Tab 3: Finals -->
-<div id="tab-finals" class="tab-content">
+<div id="tab-finals" class="tab-content" role="tabpanel">
     <div class="card">
         <h3>決賽單淘汰管理區</h3>
         <div style="margin-bottom: 12px;">
@@ -512,7 +533,7 @@ function showQRCode() {
         qrHtml = '<p style="color:var(--text-muted)">QR Code 產生失敗</p>';
     }
     overlay.innerHTML = `<div class="modal-card">
-        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <button class="modal-close" onclick="closeModal()" aria-label="關閉">&times;</button>
         <h3>分享此頁面</h3>
         <div class="qr-container">${qrHtml}</div>
         <div class="qr-url">${escapeXml(url)}</div>
@@ -633,7 +654,7 @@ function createNewEvent() {
     // Reset UI
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = '羽球賽務系統';
-    document.title = '羽球賽務系統 v19.7';
+    document.title = '羽球賽務系統 v19.8';
     const ft = document.getElementById('finalTitle');
     if (ft) ft.value = '';
     refreshPoolList();
@@ -664,7 +685,7 @@ function showEventManager() {
     const list = getEventList();
     const overlay = document.getElementById('modalOverlay');
     let html = `<div class="modal-card">
-        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <button class="modal-close" onclick="closeModal()" aria-label="關閉">&times;</button>
         <h3>賽事管理</h3>
         <button class="btn btn-success" style="width:100%;margin-bottom:12px;" onclick="createNewEvent()">+ 新增賽事</button>
         <ul class="event-list">`;
@@ -713,7 +734,7 @@ function saveEventTitle() {
     h1.textContent = val || '羽球賽務系統';
     h1.style.display = '';
     inp.style.display = 'none';
-    document.title = (val || '羽球賽務系統') + ' v19.7';
+    document.title = (val || '羽球賽務系統') + ' v19.8';
     saveState();
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -977,7 +998,7 @@ function loadState() {
         state.eventTitle = saved.eventTitle || '';
         const h1 = document.getElementById('eventTitle');
         if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.7';
+        document.title = (state.eventTitle || '羽球賽務系統') + ' v19.8';
 
         // Rebuild UI
         refreshPoolList();
@@ -1173,6 +1194,7 @@ function _updateProgressNow() {
     document.getElementById('progressDone').textContent = totalDone;
     document.getElementById('progressTotal').textContent = totalMatches;
     document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressBarText').textContent = totalDone + ' / ' + totalMatches + '（' + pct + '%）';
     document.getElementById('progressDetail').className = 'progress-detail';
     document.getElementById('progressDetail').innerHTML = details.join('');
 }
@@ -1225,22 +1247,38 @@ window.addEventListener('beforeunload', function() {
 // ============================================================
 // Tab switching
 // ============================================================
+const TAB_ORDER = ['setup', 'scoring', 'finals'];
 function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', b.textContent.includes(tab === 'setup' ? '名單' : tab === 'scoring' ? '預賽' : '決賽'));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        const isActive = b.textContent.includes(tab === 'setup' ? '名單' : tab === 'scoring' ? '預賽' : '決賽');
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', isActive);
     });
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
 }
+// Tab keyboard navigation (Left/Right arrow keys)
+document.querySelector('.tabs').addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const active = document.querySelector('.tab-btn.active');
+        const idx = TAB_ORDER.indexOf(active.getAttribute('aria-controls').replace('tab-', ''));
+        const next = e.key === 'ArrowRight' ? (idx + 1) % 3 : (idx + 2) % 3;
+        switchTab(TAB_ORDER[next]);
+        document.querySelectorAll('.tab-btn')[next].focus();
+    }
+});
 
 // ============================================================
 // Toast
 // ============================================================
+let _toastTimer = null;
 function showToast(msg, type = 'info') {
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = 'toast show ' + type;
-    setTimeout(() => t.className = 'toast', 2500);
+    clearTimeout(_toastTimer);
+    const duration = (type === 'error' || type === 'warning') ? 4000 : 2500;
+    _toastTimer = setTimeout(() => t.className = 'toast', duration);
 }
 
 // ============================================================
@@ -2791,7 +2829,7 @@ function loadFromExcel(event) {
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
-            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.7';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' v19.8';
             state.selectedPoolItem = null;
             state.editingKey = null;
             undoStack.length = 0;
