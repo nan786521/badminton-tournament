@@ -1,5 +1,13 @@
 # 羽球賽務系統 — 修改紀錄
 
+## v19.15
+
+### 2026-02-19
+
+- 2 人決賽自動產生對戰圖：結算冠軍時，若類別只有 2 名晉級者，自動建立 bracket，不需手動點「產生對戰圖」
+- 重構 `buildBracketMatches()` 為獨立 helper，供 `generateBracket()` 和 `promoteWinners()` 共用
+- Toast 提示自動產生的組數
+
 ## v19.14
 
 ### 2026-02-19

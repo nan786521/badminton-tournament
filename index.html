@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.14';</script>
+    <script>const APP_VERSION = 'v19.15';</script>
 </head>
 <body>
 
@@ -1949,13 +1949,26 @@ function promoteWinners() {
     if (totalCount === 0) { showToast('無晉級者，請先輸入比分', 'error'); return; }
     state.finalQualifiers = allWinners;
     state.bracketMatches = {};
+
+    // Auto-generate bracket for categories with exactly 2 qualifiers
+    let autoBracketCount = 0;
+    for (const cat in allWinners) {
+        if (allWinners[cat].length === 2) {
+            state.bracketMatches[cat] = buildBracketMatches(allWinners[cat]);
+            autoBracketCount++;
+        }
+    }
+
     state.activeCategory = Object.keys(allWinners)[0];
     renderFinalsTabBar();
     renderFinalsList();
+    if (getCurrentBracketMatches()?.length > 0) renderInteractiveBracket();
     switchTab('finals');
     saveState();
     const catCount = Object.keys(allWinners).length;
-    showToast(`${totalCount} 位選手晉級決賽（${catCount} 個組別）`, 'success');
+    let msg = `${totalCount} 位選手晉級決賽（${catCount} 個組別）`;
+    if (autoBracketCount > 0) msg += `，${autoBracketCount} 組已自動產生對戰圖`;
+    showToast(msg, 'success');
 }
 
 // ============================================================
@@ -2083,21 +2096,13 @@ async function shuffleFinals() {
     showToast('已重新抽籤', 'success');
 }
 
-async function generateBracket() {
-    const qualifiers = getCurrentFinalQualifiers();
-    if (qualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
-    const currentBracket = getCurrentBracketMatches();
-    if (currentBracket && currentBracket.length > 0) {
-        if (!await customConfirm('重新產生對戰圖會覆蓋目前的決賽資料，確定繼續？')) return;
-    }
-    pushUndo();
-
+// Build bracket matches array from a list of qualifiers (reusable helper)
+function buildBracketMatches(qualifiers) {
     const players = qualifiers.map(q => q.name);
     const size = Math.pow(2, Math.ceil(Math.log2(players.length)));
     while (players.length < size) players.push('—BYE—');
     const rounds = Math.log2(size);
 
-    // Build bracket data
     const matches = [];
     let currentRound = [];
     for (let i = 0; i < players.length; i += 2) currentRound.push([players[i], players[i + 1]]);
@@ -2122,8 +2127,19 @@ async function generateBracket() {
         const maxRound = rounds - 1;
         matches.push({ id: 'fb_3rd', round: maxRound, matchIdx: -1, p1: '—TBD—', p2: '—TBD—', s1: '', s2: '', winner: null, isThirdPlace: true });
     }
+    return matches;
+}
 
-    setCurrentBracketMatches(matches);
+async function generateBracket() {
+    const qualifiers = getCurrentFinalQualifiers();
+    if (qualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
+    const currentBracket = getCurrentBracketMatches();
+    if (currentBracket && currentBracket.length > 0) {
+        if (!await customConfirm('重新產生對戰圖會覆蓋目前的決賽資料，確定繼續？')) return;
+    }
+    pushUndo();
+
+    setCurrentBracketMatches(buildBracketMatches(qualifiers));
     saveState();
     renderInteractiveBracket();
     renderFinalsTabBar();
