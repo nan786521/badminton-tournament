@@ -351,7 +351,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.20';</script>
+    <script>const APP_VERSION = 'v19.21';</script>
 </head>
 <body>
 
@@ -2873,14 +2873,14 @@ function printFinalsBracketPDF() {
 
     const catPrefix = state.activeCategory ? state.activeCategory + ' ' : '';
     const title = catPrefix + (document.getElementById('finalTitle').value.trim() || '決賽對戰圖');
-    const pageW = 800;
-    const br = buildBracketSVG(qualifiers, pageW);
+    const br = buildBracketSVG(qualifiers, 800);
+    const svgW = br.width || 800;
 
     // Build full SVG with title header
     const headerH = 50;
     const svgH = br.height + headerH + 20;
     let fullSvg = '';
-    fullSvg += '<text x="' + (pageW / 2) + '" y="28" text-anchor="middle" font-size="18" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(title) + '</text>';
+    fullSvg += '<text x="' + (svgW / 2) + '" y="28" text-anchor="middle" font-size="18" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(title) + '</text>';
     fullSvg += '<g transform="translate(0,' + headerH + ')">' + br.svg + '</g>';
 
     const win = window.open('', '_blank');
@@ -2889,7 +2889,7 @@ function printFinalsBracketPDF() {
     doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeXml(title) + '</title>');
     doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
     doc.write('<style>');
-    doc.write('@media print { body { margin: 0; } .no-print { display: none; } @page { margin: 8mm; } }');
+    doc.write('@media print { body { margin: 0; } .no-print { display: none; } @page { margin: 8mm; size: landscape; } }');
     doc.write('body { font-family: "Microsoft JhengHei", sans-serif; background: #fff; margin: 20px; }');
     doc.write('.no-print { text-align: center; margin-bottom: 16px; }');
     doc.write('.no-print button { padding: 10px 24px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; margin: 0 6px; font-weight: 600; }');
@@ -2901,7 +2901,7 @@ function printFinalsBracketPDF() {
     doc.write('<button class="btn-print" onclick="window.print()">列印</button>');
     doc.write('<button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button>');
     doc.write('</div>');
-    doc.write('<svg id="bracketSvg" xmlns="http://www.w3.org/2000/svg" width="' + pageW + '" height="' + svgH + '" viewBox="0 0 ' + pageW + ' ' + svgH + '">');
+    doc.write('<svg id="bracketSvg" xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' + svgH + '" viewBox="0 0 ' + svgW + ' ' + svgH + '">');
     doc.write('<rect width="100%" height="100%" fill="white"/>');
     doc.write(fullSvg);
     doc.write('</svg>');
@@ -2923,13 +2923,21 @@ function printFinalsBracketPDF() {
     doc.write('    ctx.scale(sc,sc); ctx.drawImage(img,0,0);');
     doc.write('    var imgData = cv.toDataURL("image/jpeg",0.75);');
     doc.write('    URL.revokeObjectURL(url);');
-    doc.write('    var orient = img.width > img.height ? "landscape" : "portrait";');
+    doc.write('    var orient = "landscape";');
     doc.write('    var pdf = new jspdf.jsPDF({orientation:orient,unit:"mm",format:"a4",compress:true});');
-    doc.write('    var pw = orient === "landscape" ? 297 : 210;');
-    doc.write('    var ph = orient === "landscape" ? 210 : 297;');
+    doc.write('    var pw = 297, ph = 210;');
     doc.write('    var m=8, uw=pw-m*2, uh=ph-m*2;');
     doc.write('    var r = Math.min(uw/img.width, uh/img.height);');
-    doc.write('    pdf.addImage(imgData,"JPEG",m+(uw-img.width*r)/2,m,img.width*r,img.height*r,undefined,"FAST");');
+    doc.write('    var imgW = img.width*r, imgH = img.height*r;');
+    doc.write('    if (imgH > uh) {');
+    doc.write('      var pages = Math.ceil(imgH / uh);');
+    doc.write('      for (var p = 0; p < pages; p++) {');
+    doc.write('        if (p > 0) pdf.addPage("a4","landscape");');
+    doc.write('        pdf.addImage(imgData,"JPEG",m+(uw-imgW)/2, m - p*uh, imgW, imgH, undefined,"FAST");');
+    doc.write('      }');
+    doc.write('    } else {');
+    doc.write('      pdf.addImage(imgData,"JPEG",m+(uw-imgW)/2, m+(uh-imgH)/2, imgW, imgH, undefined,"FAST");');
+    doc.write('    }');
     doc.write('    pdf.save("' + escapeXml(title) + '.pdf");');
     doc.write('  };');
     doc.write('  img.src = url;');
@@ -3768,7 +3776,10 @@ function buildBracketSVG(qualifiers, totalWidth) {
     for (let pos = 0; pos < size; pos++) players[pos] = seedOrdSvg[pos] < n ? realP[seedOrdSvg[pos]] : null;
 
     const rounds = Math.log2(size);
-    const matchH = 50, slotH = 22;
+    // Dynamic matchH: shrink for large brackets so it fits A4 page
+    const matchH = Math.max(26, Math.min(50, Math.floor(1100 / size)));
+    const slotH = Math.max(12, Math.floor(matchH * 0.44));
+    const fontSize = matchH >= 40 ? 11 : matchH >= 30 ? 10 : 9;
     const roundW = 180, gapRound = 60;
     const startX = 40;
     const baseH = size * matchH;
@@ -3828,11 +3839,13 @@ function buildBracketSVG(qualifiers, totalWidth) {
             s += `<line x1="${rx}" y1="${my + slotH}" x2="${rx + roundW}" y2="${my + slotH}" stroke="#ddd"/>`;
 
             // Player names
-            s += `<text x="${rx + 8}" y="${my + 16}" font-size="11" font-family="Microsoft JhengHei, sans-serif" fill="${isBye1 ? '#ccc' : '#333'}">${escapeXml(p1Text)}</text>`;
-            s += `<text x="${rx + 8}" y="${my + slotH + 16}" font-size="11" font-family="Microsoft JhengHei, sans-serif" fill="${isBye2 ? '#ccc' : '#333'}">${escapeXml(p2Text)}</text>`;
+            const textY1 = my + Math.floor(slotH * 0.72);
+            const textY2 = my + slotH + Math.floor(slotH * 0.72);
+            s += `<text x="${rx + 8}" y="${textY1}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="${isBye1 ? '#ccc' : '#333'}">${escapeXml(p1Text)}</text>`;
+            s += `<text x="${rx + 8}" y="${textY2}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="${isBye2 ? '#ccc' : '#333'}">${escapeXml(p2Text)}</text>`;
 
             // Match number
-            s += matchNumLabel(rx + roundW + 14, my + matchH / 2, matchNo, 11);
+            s += matchNumLabel(rx + roundW + 14, my + matchH / 2, matchNo, fontSize);
 
             // Connector lines to next round
             if (r < rounds - 1) {
@@ -3864,7 +3877,7 @@ function buildBracketSVG(qualifiers, totalWidth) {
     s += `<text x="${lastRx + 20}" y="${60 + baseH / 2 - 10}" text-anchor="start" font-size="13" font-weight="bold" fill="#d4a017" font-family="Microsoft JhengHei, sans-serif">冠</text>`;
     s += `<text x="${lastRx + 20}" y="${60 + baseH / 2 + 10}" text-anchor="start" font-size="13" font-weight="bold" fill="#888" font-family="Microsoft JhengHei, sans-serif">亞</text>`;
 
-    return { svg: s, height: totalH };
+    return { svg: s, height: totalH, width: svgW };
 }
 
 // ============================================================
