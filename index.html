@@ -8,9 +8,29 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script>
+    // Lazy CDN loader — load libraries on demand instead of upfront
+    const CDN_LIBS = {
+        xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+        html2canvas: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+        qrcode: 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'
+    };
+    const _libLoading = {};
+    function loadLib(name) {
+        if (_libLoading[name]) return _libLoading[name];
+        const url = CDN_LIBS[name];
+        if (!url) return Promise.reject(new Error('Unknown lib: ' + name));
+        if (document.querySelector('script[src="' + url + '"]')) { _libLoading[name] = Promise.resolve(); return _libLoading[name]; }
+        _libLoading[name] = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = url;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error(name + ' 載入失敗'));
+            document.head.appendChild(s);
+        });
+        return _libLoading[name];
+    }
+    </script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
@@ -351,7 +371,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.26';</script>
+    <script>const APP_VERSION = 'v19.27';</script>
 </head>
 <body>
 
@@ -564,6 +584,46 @@ function closeModal() {
     overlay.innerHTML = '';
 }
 
+// Custom prompt dialog (replaces native prompt)
+function customPrompt(message, defaultValue) {
+    return new Promise(resolve => {
+        const overlay = document.getElementById('modalOverlay');
+        const card = document.createElement('div');
+        card.className = 'modal-card';
+        card.setAttribute('role', 'dialog');
+        card.setAttribute('aria-modal', 'true');
+        const label = document.createElement('label');
+        label.style.cssText = 'font-size:15px;margin-bottom:8px;display:block;';
+        label.textContent = message;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = defaultValue || '';
+        input.style.cssText = 'width:100%;margin-bottom:16px;';
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-light';
+        cancelBtn.textContent = '取消';
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn btn-primary';
+        okBtn.textContent = '確定';
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(okBtn);
+        card.appendChild(label);
+        card.appendChild(input);
+        card.appendChild(btnRow);
+        overlay.innerHTML = '';
+        overlay.appendChild(card);
+        overlay.style.display = 'flex';
+        input.focus();
+        input.select();
+        const submit = () => { const v = input.value.trim(); closeModal(); resolve(v || null); };
+        okBtn.onclick = submit;
+        cancelBtn.onclick = () => { closeModal(); resolve(null); };
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    });
+}
+
 // M9: Escape key closes modal
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
@@ -576,26 +636,41 @@ document.addEventListener('keydown', function(e) {
 function customConfirm(message) {
     return new Promise(resolve => {
         const overlay = document.getElementById('modalOverlay');
-        overlay.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true">
-            <p style="font-size:15px;margin-bottom:20px;line-height:1.6;">${message}</p>
-            <div style="display:flex;gap:8px;justify-content:flex-end;">
-                <button class="btn btn-light" id="confirmNo">取消</button>
-                <button class="btn btn-danger" id="confirmYes">確定</button>
-            </div>
-        </div>`;
+        const card = document.createElement('div');
+        card.className = 'modal-card';
+        card.setAttribute('role', 'dialog');
+        card.setAttribute('aria-modal', 'true');
+        const p = document.createElement('p');
+        p.style.cssText = 'font-size:15px;margin-bottom:20px;line-height:1.6;';
+        p.textContent = message;
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
+        const noBtn = document.createElement('button');
+        noBtn.className = 'btn btn-light';
+        noBtn.textContent = '取消';
+        const yesBtn = document.createElement('button');
+        yesBtn.className = 'btn btn-danger';
+        yesBtn.textContent = '確定';
+        btnRow.appendChild(noBtn);
+        btnRow.appendChild(yesBtn);
+        card.appendChild(p);
+        card.appendChild(btnRow);
+        overlay.innerHTML = '';
+        overlay.appendChild(card);
         overlay.style.display = 'flex';
-        document.getElementById('confirmYes').focus();
-        document.getElementById('confirmYes').onclick = () => { closeModal(); resolve(true); };
-        document.getElementById('confirmNo').onclick = () => { closeModal(); resolve(false); };
+        yesBtn.focus();
+        yesBtn.onclick = () => { closeModal(); resolve(true); };
+        noBtn.onclick = () => { closeModal(); resolve(false); };
     });
 }
 
 // ============================================================
 // QR Code Sharing
 // ============================================================
-function showQRCode() {
+async function showQRCode() {
     const url = location.href;
     const overlay = document.getElementById('modalOverlay');
+    try { await loadLib('qrcode'); } catch(err) { showToast(err.message, 'error'); return; }
     let qrHtml = '';
     try {
         const qr = qrcode(0, 'M');
@@ -625,9 +700,10 @@ function showQRCode() {
 // ============================================================
 // Screenshot Sharing
 // ============================================================
-function captureScreenshot(elementId) {
+async function captureScreenshot(elementId) {
     const el = document.getElementById(elementId);
     if (!el || !el.innerHTML.trim()) { showToast('尚無內容可截圖', 'error'); return; }
+    try { await loadLib('html2canvas'); } catch(err) { showToast(err.message, 'error'); return; }
     showToast('截圖中...', 'info');
     html2canvas(el, { scale: 2, useCORS: true, backgroundColor: getComputedStyle(document.body).backgroundColor }).then(function(canvas) {
         canvas.toBlob(function(blob) {
@@ -767,30 +843,76 @@ function showEventManager() {
     saveCurrentEvent();
     const list = getEventList();
     const overlay = document.getElementById('modalOverlay');
-    let html = `<div class="modal-card">
-        <button class="modal-close" onclick="closeModal()" aria-label="關閉">&times;</button>
-        <h3>賽事管理</h3>
-        <button class="btn btn-success" style="width:100%;margin-bottom:12px;" onclick="createNewEvent()">+ 新增賽事</button>
-        <ul class="event-list">`;
+    overlay.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'modal-card';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'modal-close';
+    closeBtn.setAttribute('aria-label', '關閉');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = closeModal;
+    card.appendChild(closeBtn);
+
+    const h3 = document.createElement('h3');
+    h3.textContent = '賽事管理';
+    card.appendChild(h3);
+
+    const newBtn = document.createElement('button');
+    newBtn.className = 'btn btn-success';
+    newBtn.style.cssText = 'width:100%;margin-bottom:12px;';
+    newBtn.textContent = '+ 新增賽事';
+    newBtn.onclick = createNewEvent;
+    card.appendChild(newBtn);
+
+    const ul = document.createElement('ul');
+    ul.className = 'event-list';
+
     if (list.length === 0) {
-        html += '<li style="text-align:center;color:var(--text-hint);padding:20px;">尚無已儲存的賽事</li>';
+        const li = document.createElement('li');
+        li.style.cssText = 'text-align:center;color:var(--text-hint);padding:20px;';
+        li.textContent = '尚無已儲存的賽事';
+        ul.appendChild(li);
     } else {
         list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
         list.forEach(evt => {
             const isActive = evt.id === state.eventId;
-            const time = evt.updatedAt ? new Date(evt.updatedAt).toLocaleString() : '';
-            html += `<li class="event-item ${isActive ? 'active' : ''}">
-                <div class="event-info">
-                    <div class="event-name">${escapeXml(evt.title || '未命名賽事')}</div>
-                    <div class="event-time">${time}</div>
-                </div>
-                ${isActive ? '<span class="event-badge">進行中</span>' : `<button onclick="loadEvent('${evt.id}')">載入</button>`}
-                ${!isActive ? `<button class="del" onclick="deleteEvent('${evt.id}')">刪除</button>` : ''}
-            </li>`;
+            const li = document.createElement('li');
+            li.className = 'event-item' + (isActive ? ' active' : '');
+
+            const info = document.createElement('div');
+            info.className = 'event-info';
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'event-name';
+            nameDiv.textContent = evt.title || '未命名賽事';
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'event-time';
+            timeDiv.textContent = evt.updatedAt ? new Date(evt.updatedAt).toLocaleString() : '';
+            info.appendChild(nameDiv);
+            info.appendChild(timeDiv);
+            li.appendChild(info);
+
+            if (isActive) {
+                const badge = document.createElement('span');
+                badge.className = 'event-badge';
+                badge.textContent = '進行中';
+                li.appendChild(badge);
+            } else {
+                const loadBtn = document.createElement('button');
+                loadBtn.textContent = '載入';
+                loadBtn.onclick = () => loadEvent(evt.id);
+                li.appendChild(loadBtn);
+                const delBtn = document.createElement('button');
+                delBtn.className = 'del';
+                delBtn.textContent = '刪除';
+                delBtn.onclick = () => deleteEvent(evt.id);
+                li.appendChild(delBtn);
+            }
+            ul.appendChild(li);
         });
     }
-    html += '</ul></div>';
-    overlay.innerHTML = html;
+    card.appendChild(ul);
+    overlay.appendChild(card);
     overlay.style.display = 'flex';
 }
 
@@ -1021,8 +1143,9 @@ function collectScores() {
     return scores;
 }
 
-function takeSnapshot() {
-    return JSON.stringify({
+// Unified state serialization — single source of truth
+function serializeState(scores) {
+    return {
         setupPool: state.setupPool,
         activeGroups: state.activeGroups,
         finalQualifiers: state.finalQualifiers,
@@ -1031,8 +1154,12 @@ function takeSnapshot() {
         prelimBronze: state.prelimBronze || {},
         activeCategory: state.activeCategory || null,
         eventTitle: state.eventTitle || '',
-        scores: collectScores()
-    });
+        scores: scores || collectScores()
+    };
+}
+
+function takeSnapshot() {
+    return JSON.stringify(serializeState());
 }
 
 function pushUndo() {
@@ -1108,6 +1235,14 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+// Keyboard activation for ff-badge (Enter/Space triggers click)
+document.addEventListener('keydown', function(e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('ff-badge')) {
+        e.preventDefault();
+        e.target.click();
+    }
+});
+
 // Auto-select on focus for quick overwrite
 document.addEventListener('focusin', function(e) {
     if (e.target.classList.contains('score-input') || e.target.classList.contains('bracket-score')) {
@@ -1119,19 +1254,8 @@ document.addEventListener('focusin', function(e) {
 // Persistence (localStorage)
 // ============================================================
 function saveState() {
-    const scores = collectScores();
     try {
-        const data = JSON.stringify({
-            setupPool: state.setupPool,
-            activeGroups: state.activeGroups,
-            finalQualifiers: state.finalQualifiers,
-            manualQualify: state.manualQualify || {},
-            bracketMatches: state.bracketMatches || {},
-            prelimBronze: state.prelimBronze || {},
-            activeCategory: state.activeCategory || null,
-            eventTitle: state.eventTitle || '',
-            scores: scores
-        });
+        const data = JSON.stringify(serializeState());
         localStorage.setItem('badminton_state', data);
         // Also save to event-specific key
         if (state.eventId) localStorage.setItem('badminton_event_' + state.eventId, data);
@@ -1150,7 +1274,11 @@ function saveState() {
             if (idx >= 0) { list[idx].title = state.eventTitle || '未命名賽事'; list[idx].updatedAt = new Date().toISOString(); saveEventList(list); }
         }
     } catch (e) {
-        showToast('儲存失敗：' + e.message, 'error');
+        if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+            showToast('儲存空間不足！請刪除不需要的賽事或使用「存檔」匯出 Excel 備份', 'error');
+        } else {
+            showToast('儲存失敗：' + e.message, 'error');
+        }
     }
 }
 
@@ -1224,11 +1352,11 @@ function rebuildScoringUI(savedScores) {
                 const ffLabel = { '': '棄', injury: '傷', voluntary: '棄' };
                 row.innerHTML = `
                     <span class="match-no">${m.matchNo}</span>
-                    <span class="player-name" id="pn1_${m.matchId}">${alignName(group.members[m.p1], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${m.matchId}" data-ff="${ff1Val}" onclick="cycleForfeit('${m.matchId}',1)" title="點擊切換：傷/棄">${ffLabel[ff1Val] || '棄'}</span></span>
+                    <span class="player-name" id="pn1_${m.matchId}">${alignName(group.members[m.p1], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${m.matchId}" data-ff="${ff1Val}" onclick="cycleForfeit('${m.matchId}',1)" tabindex="0" role="button" title="點擊切換：傷/棄">${ffLabel[ff1Val] || '棄'}</span></span>
                     <input type="number" class="score-input" id="s1_${m.matchId}" min="0" max="99" placeholder="-" value="${s1Val}">
                     <span class="vs-label">VS</span>
                     <input type="number" class="score-input" id="s2_${m.matchId}" min="0" max="99" placeholder="-" value="${s2Val}">
-                    <span class="player-name right" id="pn2_${m.matchId}"><span class="ff-badge" id="ff2_${m.matchId}" data-ff="${ff2Val}" onclick="cycleForfeit('${m.matchId}',2)" title="點擊切換：傷/棄">${ffLabel[ff2Val] || '棄'}</span>${alignName(group.members[m.p2], aw.sw, aw.nw)}</span>
+                    <span class="player-name right" id="pn2_${m.matchId}"><span class="ff-badge" id="ff2_${m.matchId}" data-ff="${ff2Val}" onclick="cycleForfeit('${m.matchId}',2)" tabindex="0" role="button" title="點擊切換：傷/棄">${ffLabel[ff2Val] || '棄'}</span>${alignName(group.members[m.p2], aw.sw, aw.nw)}</span>
                 `;
                 groupCard.appendChild(row);
                 if (ff1Val || ff2Val) setTimeout(() => onForfeit(m.matchId, true), 0);
@@ -1569,9 +1697,10 @@ async function clearAllPool() {
 }
 
 // Excel import
-function importExcel(event) {
+async function importExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
+    try { await loadLib('xlsx'); } catch(err) { showToast(err.message, 'error'); return; }
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
@@ -1680,11 +1809,11 @@ async function startTournament() {
                 row.className = 'match-row';
                 row.innerHTML = `
                     <span class="match-no">${matchNo}</span>
-                    <span class="player-name" id="pn1_${matchId}">${alignName(members[i], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',1)" title="點擊切換：傷/棄">棄</span></span>
+                    <span class="player-name" id="pn1_${matchId}">${alignName(members[i], aw.sw, aw.nw)}<span class="ff-badge" id="ff1_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',1)" tabindex="0" role="button" title="點擊切換：傷/棄">棄</span></span>
                     <input type="number" class="score-input" id="s1_${matchId}" min="0" max="99" placeholder="-">
                     <span class="vs-label">VS</span>
                     <input type="number" class="score-input" id="s2_${matchId}" min="0" max="99" placeholder="-">
-                    <span class="player-name right" id="pn2_${matchId}"><span class="ff-badge" id="ff2_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',2)" title="點擊切換：傷/棄">棄</span>${alignName(members[j], aw.sw, aw.nw)}</span>
+                    <span class="player-name right" id="pn2_${matchId}"><span class="ff-badge" id="ff2_${matchId}" data-ff="" onclick="cycleForfeit('${matchId}',2)" tabindex="0" role="button" title="點擊切換：傷/棄">棄</span>${alignName(members[j], aw.sw, aw.nw)}</span>
                 `;
                 groupCard.appendChild(row);
                 matches.push({ p1: i, p2: j, matchNo, matchId });
@@ -2884,8 +3013,8 @@ function generateFinalsScoreTable() {
             const p2Display = m.bye2 ? '<span style="color:var(--text-placeholder)">輪空</span>' : alignName(m.p2, aw.sw, aw.nw);
             const disabled1 = m.bye1 ? ' disabled' : '';
             const disabled2 = m.bye2 ? ' disabled' : '';
-            const ffBadge1 = m.bye1 ? '' : '<span class="ff-badge" id="ff1_' + m.id + '" data-ff="" onclick="cycleForfeit(\'' + m.id + '\',1)" title="點擊切換：傷/棄">棄</span>';
-            const ffBadge2 = m.bye2 ? '' : '<span class="ff-badge" id="ff2_' + m.id + '" data-ff="" onclick="cycleForfeit(\'' + m.id + '\',2)" title="點擊切換：傷/棄">棄</span>';
+            const ffBadge1 = m.bye1 ? '' : '<span class="ff-badge" id="ff1_' + m.id + '" data-ff="" onclick="cycleForfeit(\'' + m.id + '\',1)" tabindex="0" role="button" title="點擊切換：傷/棄">棄</span>';
+            const ffBadge2 = m.bye2 ? '' : '<span class="ff-badge" id="ff2_' + m.id + '" data-ff="" onclick="cycleForfeit(\'' + m.id + '\',2)" tabindex="0" role="button" title="點擊切換：傷/棄">棄</span>';
             row.innerHTML =
                 '<span class="match-no">' + (mi + 1) + '</span>' +
                 '<span class="player-name" id="pn1_' + m.id + '">' + p1Display + ffBadge1 + '</span>' +
@@ -3001,9 +3130,9 @@ function splitDoubles(name) {
     return [name];
 }
 
-function generatePrelimSheets() {
+async function generatePrelimSheets() {
     if (Object.keys(state.activeGroups).length === 0) { showToast('尚無比賽資料', 'error'); return; }
-    const title = prompt('請輸入賽事名稱', getEventTitle());
+    const title = await customPrompt('請輸入賽事名稱', getEventTitle());
     if (!title) return;
 
     const matches = [];
@@ -3026,11 +3155,11 @@ function generatePrelimSheets() {
     openMatchSheets(matches, title);
 }
 
-function generateFinalsSheets() {
+async function generateFinalsSheets() {
     const qualifiers = getCurrentFinalQualifiers();
     if (qualifiers.length < 2) { showToast('至少需要 2 位選手', 'error'); return; }
     const catPrefix = state.activeCategory ? state.activeCategory + ' ' : '';
-    const title = prompt('請輸入賽事名稱', catPrefix + (document.getElementById('finalTitle').value.trim() || getEventTitle()));
+    const title = await customPrompt('請輸入賽事名稱', catPrefix + (document.getElementById('finalTitle').value.trim() || getEventTitle()));
     if (!title) return;
 
     const realPlayers2 = qualifiers.map(q => q.name);
@@ -3211,36 +3340,19 @@ function openMatchSheets(matches, title) {
 // ============================================================
 // Save / Load tournament file (.xlsx)
 // ============================================================
-function saveToExcel() {
+async function saveToExcel() {
     if (Object.keys(state.activeGroups).length === 0 && Object.keys(state.setupPool).length === 0) {
         showToast('尚無資料可存檔', 'error'); return;
     }
+    try { await loadLib('xlsx'); } catch(err) { showToast(err.message, 'error'); return; }
 
-    // Collect current scores + forfeits
-    const scores = {};
-    for (const cat in state.activeGroups) {
-        state.activeGroups[cat].forEach(g => {
-            g.matches.forEach(m => {
-                const { v1, v2 } = getMatchScores(m.matchId);
-                scores[m.matchId] = [v1, v2, getFF(m.matchId, 1), getFF(m.matchId, 2)];
-            });
-        });
-    }
+    const serialized = serializeState();
+    const scores = serialized.scores;
 
     const wb = XLSX.utils.book_new();
 
     // _state sheet: JSON data for restore
-    const stateData = JSON.stringify({
-        setupPool: state.setupPool,
-        activeGroups: state.activeGroups,
-        finalQualifiers: state.finalQualifiers,
-        manualQualify: state.manualQualify || {},
-        bracketMatches: state.bracketMatches || {},
-        prelimBronze: state.prelimBronze || {},
-        activeCategory: state.activeCategory || null,
-        eventTitle: state.eventTitle || '',
-        scores: scores
-    });
+    const stateData = JSON.stringify(serialized);
     const stateSheet = XLSX.utils.aoa_to_sheet([
         ['__BADMINTON_SAVE_V1__'],
         [stateData]
@@ -3282,6 +3394,7 @@ function saveToExcel() {
 async function loadFromExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
+    try { await loadLib('xlsx'); } catch(err) { showToast(err.message, 'error'); return; }
     if (Object.keys(state.activeGroups).length > 0 || Object.keys(state.setupPool).length > 0) {
         if (!await customConfirm('載入存檔將覆蓋目前所有資料，確定要繼續嗎？')) { event.target.value = ''; return; }
     }
@@ -3338,8 +3451,9 @@ async function loadFromExcel(event) {
 // ============================================================
 // Excel export (成績報表)
 // ============================================================
-function generateExcel() {
+async function generateExcel() {
     if (Object.keys(state.activeGroups).length === 0) { showToast('尚無賽事資料', 'error'); return; }
+    try { await loadLib('xlsx'); } catch(err) { showToast(err.message, 'error'); return; }
 
     const wb = XLSX.utils.book_new();
 
@@ -3453,8 +3567,9 @@ function generateExcel() {
     showToast('Excel 已下載', 'success');
 }
 
-function exportFinalsExcel() {
+async function exportFinalsExcel() {
     if (!hasFinalQualifiers()) { showToast('無晉級者', 'error'); return; }
+    try { await loadLib('xlsx'); } catch(err) { showToast(err.message, 'error'); return; }
     const wb = XLSX.utils.book_new();
     getFinalsCategories().forEach(cat => {
         const qualifiers = state.finalQualifiers[cat];
@@ -3960,7 +4075,8 @@ function shuffle(arr) {
 // ============================================================
 // Download template Excel
 // ============================================================
-function downloadTemplate() {
+async function downloadTemplate() {
+    try { await loadLib('xlsx'); } catch(err) { showToast(err.message, 'error'); return; }
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: 3年級男單

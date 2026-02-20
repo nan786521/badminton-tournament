@@ -1,5 +1,27 @@
 # 羽球賽務系統 — 修改紀錄
 
+## v19.27
+
+### 2026-02-20
+
+#### 安全性修復
+- **XSS 修復**：`customConfirm()` 改用 `textContent` + DOM API 建構，不再以 innerHTML 注入使用者訊息
+- **XSS 修復**：`showEventManager()` 改用 DOM API + closure 綁定事件，移除 inline onclick 中的 ID 注入
+
+#### 程式碼品質
+- **統一序列化**：新增 `serializeState()` 函式，`saveState()` / `takeSnapshot()` / `saveToExcel()` 三處共用，避免欄位遺漏或不一致
+- **取代 prompt()**：新增 `customPrompt()` modal 對話框，取代出賽單的原生 `prompt()`，UI 風格一致
+
+#### 效能優化
+- **CDN 延遲載入**：xlsx（400KB）、html2canvas（200KB）、qrcode（30KB）改為按需載入，首次開啟頁面減少 ~630KB 下載量
+- **localStorage 容量檢查**：`saveState()` 新增 `QuotaExceededError` 偵測，空間不足時顯示中文提示
+
+#### 可及性
+- **棄權徽章鍵盤操作**：所有 `.ff-badge` 加入 `tabindex="0"` + `role="button"`，支援 Enter/Space 鍵觸發
+
+#### PWA
+- **Service Worker 更新策略**：HTML 改為 network-first（確保版本更新送達），靜態資源維持 cache-first；cache key 同步版本號
+
 ## v19.26
 
 ### 2026-02-20

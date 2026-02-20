@@ -1,4 +1,4 @@
-const CACHE_NAME = 'badminton-v19.26';
+const CACHE_NAME = 'badminton-v19.27';
 const ASSETS = [
   './',
   './index.html',
@@ -9,14 +9,14 @@ const ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'
 ];
 
-// Install: cache all assets
+// Install: cache all assets, force activate immediately
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
 
-// Activate: clean old caches
+// Activate: clean old caches and take control
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -25,9 +25,28 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch: cache-first, fallback to network
+// Fetch: network-first for HTML (ensures updates), cache-first for static assets
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
-  );
+  const url = new URL(event.request.url);
+  const isHTML = event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
+
+  if (isHTML) {
+    // Network-first for HTML pages — ensures users get updates
+    event.respondWith(
+      fetch(event.request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+  } else {
+    // Cache-first for static assets (CDN libs, manifest)
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
+      }))
+    );
+  }
 });
