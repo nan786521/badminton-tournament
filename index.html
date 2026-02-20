@@ -371,7 +371,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.27';</script>
+    <script>const APP_VERSION = 'v19.28';</script>
 </head>
 <body>
 
@@ -794,6 +794,7 @@ function createNewEvent() {
     state.manualQualify = {};
     state.bracketMatches = {};
     state.prelimBronze = {};
+    state.prelimResults = {};
     state.activeCategory = null;
     state.eventTitle = '';
     state.selectedPoolItem = null;
@@ -960,6 +961,7 @@ const state = {
     manualQualify: {},      // { "cat_gName": [idx, ...] } — manual tie-break selections
     bracketMatches: {},     // { catName: [ { id, round, matchIdx, p1, p2, s1, s2, winner } ] }
     prelimBronze: {},       // { catName: "playerName" } — 3-person group's 3rd place
+    prelimResults: {},      // { catName: { champion, runnerUp, bronzes[], fourth, matches[] } } — results from single-group categories
     activeCategory: null,   // Currently selected category in finals tab
     eventTitle: '',         // Custom event title
     eventId: null,          // Multi-event ID
@@ -1064,7 +1066,10 @@ function getFinalsCategories() {
 
 function getBracketResultsForCategory(cat) {
     const matches = state.bracketMatches[cat];
-    if (!matches || matches.length === 0) return null;
+    if (!matches || matches.length === 0) {
+        // Fall back to prelim-only results for single-group categories
+        return (state.prelimResults && state.prelimResults[cat]) || null;
+    }
     const normalMatches = matches.filter(m => !m.isThirdPlace);
     if (normalMatches.length === 0) return null;
     const maxRound = Math.max(...normalMatches.map(m => m.round));
@@ -1152,6 +1157,7 @@ function serializeState(scores) {
         manualQualify: state.manualQualify || {},
         bracketMatches: state.bracketMatches || {},
         prelimBronze: state.prelimBronze || {},
+        prelimResults: state.prelimResults || {},
         activeCategory: state.activeCategory || null,
         eventTitle: state.eventTitle || '',
         scores: scores || collectScores()
@@ -1177,6 +1183,7 @@ function restoreSnapshot(snap) {
     state.manualQualify = saved.manualQualify || {};
     state.bracketMatches = saved.bracketMatches || {};
     state.prelimBronze = saved.prelimBronze || {};
+    state.prelimResults = saved.prelimResults || {};
     state.activeCategory = saved.activeCategory || null;
     state.eventTitle = saved.eventTitle || '';
     const h1 = document.getElementById('eventTitle');
@@ -1293,6 +1300,7 @@ function loadState() {
         // Migrate flat finalQualifiers/bracketMatches to per-category dict
         migrateFinalQualifiers(saved);
         state.prelimBronze = saved.prelimBronze || {};
+        state.prelimResults = saved.prelimResults || {};
         // Set eventId from event list if not set
         if (!state.eventId) {
             const list = getEventList();
@@ -2099,21 +2107,68 @@ function promoteWinners() {
     state.finalQualifiers = allWinners;
     state.bracketMatches = {};
     state.prelimBronze = prelimBronze;
+    state.prelimResults = {};
 
-    // Auto-generate bracket for categories with exactly 2 qualifiers
-    // If they come from a 2-person prelim group, auto-fill scores & confirm winner
+    // For single-group categories (all results determined in prelim), store full rankings
+    for (const cat in state.activeGroups) {
+        const groups = state.activeGroups[cat];
+        if (groups.length !== 1) continue;
+        const g = groups[0];
+        if (allWinners[cat] && allWinners[cat].length >= 2) continue; // has bracket, skip
+        const { scores, hasScore } = getScores(cat, g);
+        if (!hasScore) continue;
+        const { voluntary: voluntaryPlayers } = collectForfeitPlayers(g);
+        const ranked = Object.entries(scores)
+            .filter(([idx]) => !voluntaryPlayers.has(parseInt(idx)))
+            .sort((a, b) => {
+                if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
+                return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
+            });
+        if (ranked.length < 2) continue;
+        const champion = g.members[parseInt(ranked[0][0])];
+        const runnerUp = g.members[parseInt(ranked[1][0])];
+        const bronzes = ranked.length >= 3 ? [g.members[parseInt(ranked[2][0])]] : [];
+        const fourth = ranked.length >= 4 ? g.members[parseInt(ranked[3][0])] : null;
+        // Collect prelim match data for detail table
+        const prelimMatchData = g.matches.map(m => {
+            const { n1, n2 } = getMatchScores(m.matchId);
+            const f1 = getFF(m.matchId, 1);
+            const f2 = getFF(m.matchId, 2);
+            const p1Name = g.members[m.p1];
+            const p2Name = g.members[m.p2];
+            let winner = null;
+            if (f1 && !f2) winner = p2Name;
+            else if (f2 && !f1) winner = p1Name;
+            else if (!isNaN(n1) && !isNaN(n2) && n1 !== n2) winner = n1 > n2 ? p1Name : p2Name;
+            return { p1: p1Name, p2: p2Name, s1: isNaN(n1) ? '' : String(n1), s2: isNaN(n2) ? '' : String(n2), winner, round: 0, matchIdx: 0, isPrelim: true };
+        }).filter(m => m.winner);
+        state.prelimResults[cat] = { champion, runnerUp, bronzes, fourth, matches: prelimMatchData };
+        // Ensure this category appears in finals even with <2 qualifiers
+        if (!allWinners[cat]) {
+            allWinners[cat] = ranked.map(([idx], i) => ({ label: `第${i + 1}名`, name: g.members[parseInt(idx)] }));
+            totalCount += ranked.length;
+        }
+    }
+
+    // Auto-generate bracket for ALL categories
+    // For first-round matches where both players came from the same 2-person prelim group,
+    // auto-fill scores from prelim and confirm the winner
     let autoBracketCount = 0;
     let autoCompleteCount = 0;
     for (const fKey in allWinners) {
-        if (allWinners[fKey].length === 2) {
-            const bracketMatches = buildBracketMatches(allWinners[fKey]);
+        if (allWinners[fKey].length < 2) continue; // single qualifier = champion decided in prelim
+        const bracketMatches = buildBracketMatches(allWinners[fKey]);
 
-            // Try to carry prelim scores: find the source group
-            // fKey is either "cat" (single group) or "cat G組"
+        // Scan first-round real matches for pairs from same 2-person prelim group
+        for (const bm of bracketMatches) {
+            if (bm.round !== 0) continue;
+            if (bm.p1 === '—BYE—' || bm.p2 === '—BYE—') continue;
+            if (bm.p1 === '—TBD—' || bm.p2 === '—TBD—') continue;
+
             let sourceGroup = null;
             for (const cat in state.activeGroups) {
                 for (const g of state.activeGroups[cat]) {
-                    if (g.members.length === 2 && g.members.includes(allWinners[fKey][0].name) && g.members.includes(allWinners[fKey][1].name)) {
+                    if (g.members.length === 2 && g.members.includes(bm.p1) && g.members.includes(bm.p2)) {
                         sourceGroup = g;
                         break;
                     }
@@ -2127,7 +2182,6 @@ function promoteWinners() {
                 const f2 = getFF(pm.matchId, 2);
                 const hasScores = (!isNaN(n1) && !isNaN(n2) && n1 !== n2) || f1 || f2;
                 if (hasScores) {
-                    const bm = bracketMatches[0];
                     const prelimP1Name = sourceGroup.members[pm.p1];
                     if (bm.p1 === prelimP1Name) {
                         bm.s1 = String(isNaN(n1) ? 0 : n1);
@@ -2139,14 +2193,36 @@ function promoteWinners() {
                     const bs1 = parseInt(bm.s1), bs2 = parseInt(bm.s2);
                     if (bs1 !== bs2) {
                         bm.winner = bs1 > bs2 ? bm.p1 : bm.p2;
+                        const loser = bm.winner === bm.p1 ? bm.p2 : bm.p1;
+                        // Advance winner to next round
+                        const nextRound = bm.round + 1;
+                        const nextMatchIdx = Math.floor(bm.matchIdx / 2);
+                        const nextSlot = bm.matchIdx % 2;
+                        const nextMatch = bracketMatches.find(x => x.round === nextRound && x.matchIdx === nextMatchIdx && !x.isThirdPlace);
+                        if (nextMatch) {
+                            if (nextSlot === 0) nextMatch.p1 = bm.winner;
+                            else nextMatch.p2 = bm.winner;
+                        }
+                        // Route semi-final loser to 3rd place match
+                        const thirdMatch = bracketMatches.find(x => x.isThirdPlace);
+                        if (thirdMatch) {
+                            const maxRound = Math.max(...bracketMatches.filter(x => !x.isThirdPlace).map(x => x.round));
+                            if (bm.round === maxRound - 1) {
+                                if (bm.matchIdx === 0) thirdMatch.p1 = loser;
+                                else if (bm.matchIdx === 1) thirdMatch.p2 = loser;
+                            }
+                        }
                         autoCompleteCount++;
                     }
                 }
             }
-
-            state.bracketMatches[fKey] = bracketMatches;
-            autoBracketCount++;
         }
+
+        // Auto-resolve any BYE matches that became ready after auto-fill
+        autoResolveBracketBYEs(bracketMatches);
+
+        state.bracketMatches[fKey] = bracketMatches;
+        autoBracketCount++;
     }
 
     state.activeCategory = Object.keys(allWinners)[0];
@@ -2202,12 +2278,17 @@ function switchFinalsCategory(cat) {
     } else {
         overview.style.display = 'none';
         content.style.display = '';
-        document.getElementById('finalsCatTitle').textContent = cat + ' — 決賽單淘汰管理區';
+        const isPrelimOnly = state.prelimResults && state.prelimResults[cat] && (!state.bracketMatches[cat] || state.bracketMatches[cat].length === 0);
+        document.getElementById('finalsCatTitle').textContent = cat + (isPrelimOnly ? ' — 預賽成績' : ' — 決賽單淘汰管理區');
         renderFinalsList();
         document.getElementById('finalsScoreArea').innerHTML = '';
         const bm = getCurrentBracketMatches();
         if (bm && bm.length > 0) renderInteractiveBracket();
-        else document.getElementById('bracketArea').innerHTML = '';
+        else {
+            document.getElementById('bracketArea').innerHTML = '';
+            // Show result card for prelim-only categories
+            if (isPrelimOnly) renderPrelimResultCard(cat);
+        }
     }
     renderFinalsTabBar();
 }
@@ -2585,6 +2666,29 @@ function renderBracketResult() {
     area.appendChild(resultCard);
 }
 
+function renderPrelimResultCard(cat) {
+    const result = state.prelimResults[cat];
+    if (!result) return;
+    const bracketArea = document.getElementById('bracketArea');
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginTop = '16px';
+    let html = '<h3 style="margin-bottom:12px;">比賽結果（預賽決定）</h3>';
+    html += '<div class="medal-row">';
+    html += `<div class="medal-item gold"><div class="medal-label">🥇 冠軍</div><div class="medal-name">${escapeXml(result.champion)}</div></div>`;
+    html += `<div class="medal-item silver"><div class="medal-label">🥈 亞軍</div><div class="medal-name">${escapeXml(result.runnerUp)}</div></div>`;
+    if (result.bronzes && result.bronzes.length > 0) {
+        html += `<div class="medal-item bronze"><div class="medal-label">🥉 季軍</div><div class="medal-name">${result.bronzes.map(b => escapeXml(b)).join('、')}</div></div>`;
+    }
+    if (result.fourth) {
+        html += `<div class="medal-item" style="background:var(--bg-card);border:1.5px solid var(--border);"><div class="medal-label">殿軍</div><div class="medal-name">${escapeXml(result.fourth)}</div></div>`;
+    }
+    html += '</div>';
+    html += '<div class="result-print-btn"><button class="btn btn-danger" onclick="printResultAnnouncement()">列印 / 下載成績公告</button></div>';
+    card.innerHTML = html;
+    bracketArea.appendChild(card);
+}
+
 function printResultAnnouncement() {
     const result = getBracketResults();
     if (!result) { showToast('尚無比賽結果', 'error'); return; }
@@ -2606,8 +2710,10 @@ function printResultAnnouncement() {
 
     // Collect all match results for the detail table
     const currentMatches = getCurrentBracketMatches() || [];
-    const matches = currentMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
-    const rounds = getBracketRoundCount(currentMatches);
+    const isPrelimOnly = currentMatches.length === 0 && state.prelimResults && state.prelimResults[state.activeCategory];
+    const matchSource = isPrelimOnly ? state.prelimResults[state.activeCategory].matches : currentMatches;
+    const matches = matchSource.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
+    const rounds = isPrelimOnly ? 1 : getBracketRoundCount(currentMatches);
 
     const win = window.open('', '_blank');
     const doc = win.document;
@@ -2705,6 +2811,8 @@ function printResultAnnouncement() {
         matches.forEach(m => {
             if (m.isThirdPlace) {
                 if (!shown3rd) { doc.write('<tr class="round-header"><td colspan="5">季軍賽</td></tr>'); shown3rd = true; }
+            } else if (m.isPrelim) {
+                if (lastRound !== 'prelim') { lastRound = 'prelim'; doc.write('<tr class="round-header"><td colspan="5">預賽</td></tr>'); }
             } else if (m.round !== lastRound) {
                 lastRound = m.round;
                 const rn = getRoundName(m.round, rounds);
@@ -2849,7 +2957,8 @@ function _writeReportFinalsSection(doc) {
             if (parts.length >= 3) return escapeXml(parts[0] + ' ' + parts[1]) + '<br>' + escapeXml(parts[0] + ' ' + parts.slice(2).join(' '));
             return escapeXml(name);
         };
-        doc.write('<div class="section"><h2>' + escapeXml(cat) + ' 決賽成績</h2>');
+        const isCatPrelim = state.prelimResults && state.prelimResults[cat] && (!state.bracketMatches[cat] || state.bracketMatches[cat].length === 0);
+        doc.write('<div class="section"><h2>' + escapeXml(cat) + (isCatPrelim ? ' 成績' : ' 決賽成績') + '</h2>');
         // Podium
         doc.write('<div class="podium">');
         doc.write('<div class="podium-item gold"><div class="podium-rank">🥇</div><div class="podium-label">冠軍</div><div class="podium-name">' + fmtName(bracketResult.champion) + '</div></div>');
@@ -2865,17 +2974,21 @@ function _writeReportFinalsSection(doc) {
                 doc.write('<div style="text-align:center;margin-bottom:12px;"><span style="border:1px solid #ddd;border-radius:6px;padding:6px 16px;font-size:13px;color:#555;">殿軍<strong>' + fmtName(bracketResult.fourth) + '</strong></span></div>');
             }
         }
-        // Match details
+        // Match details — use bracket matches or prelim matches
         const catMatches = state.bracketMatches[cat] || [];
-        const fMatches = catMatches.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
+        const isPrelimCat = catMatches.length === 0 && state.prelimResults && state.prelimResults[cat];
+        const matchSource = isPrelimCat ? state.prelimResults[cat].matches : catMatches;
+        const fMatches = matchSource.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
         if (fMatches.length > 0) {
-            const rounds = getBracketRoundCount(catMatches);
+            const rounds = isPrelimCat ? 1 : getBracketRoundCount(catMatches);
             doc.write('<h3>對戰明細</h3>');
             doc.write('<table><tr><th>場次</th><th>選手</th><th style="text-align:center">比分</th><th>選手</th><th>勝者</th></tr>');
             let lastRound = -1, matchNum = 1, shown3rd = false;
             fMatches.forEach(m => {
                 if (m.isThirdPlace) {
                     if (!shown3rd) { doc.write('<tr class="round-header"><td colspan="5">季軍賽</td></tr>'); shown3rd = true; }
+                } else if (m.isPrelim) {
+                    if (lastRound !== 'prelim') { lastRound = 'prelim'; doc.write('<tr class="round-header"><td colspan="5">預賽</td></tr>'); }
                 } else if (m.round !== lastRound) {
                     lastRound = m.round;
                     doc.write('<tr class="round-header"><td colspan="5">' + getRoundName(m.round, rounds) + '</td></tr>');
@@ -3420,6 +3533,7 @@ async function loadFromExcel(event) {
             state.manualQualify = saved.manualQualify || {};
             migrateFinalQualifiers(saved);
             state.prelimBronze = saved.prelimBronze || {};
+            state.prelimResults = saved.prelimResults || {};
             state.eventTitle = saved.eventTitle || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
