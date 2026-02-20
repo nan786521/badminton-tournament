@@ -371,7 +371,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v1.29';</script>
+    <script>const APP_VERSION = 'v1.30';</script>
 </head>
 <body>
 
@@ -380,6 +380,7 @@
     <input type="text" id="eventTitleInput" class="event-title-input" style="display:none;" placeholder="輸入賽事名稱" maxlength="40">
     <span id="versionLabel"></span>
     <div class="header-right">
+        <button class="header-btn" onclick="clearCurrentData()" title="清除目前賽事資料">&#128465; 清除</button>
         <button class="header-btn" onclick="showEventManager()" title="切換賽事">&#128203; 賽事</button>
         <button class="header-btn" onclick="showQRCode()" title="QR Code 分享">&#128279; 分享</button>
         <button class="theme-toggle" onclick="toggleTheme()">
@@ -832,6 +833,54 @@ function createNewEvent() {
     closeModal();
     switchTab('setup');
     showToast('已建立新賽事', 'success');
+}
+
+async function clearCurrentData() {
+    if (!await customConfirm('確定要清除目前賽事的所有資料嗎？\n（名單、分組、比分、決賽結果都會被清除）')) return;
+    // Keep event identity
+    const keepId = state.eventId;
+    const keepTitle = state.eventTitle;
+    // Clear all tournament data
+    state.setupPool = {};
+    state.activeGroups = {};
+    state.finalQualifiers = {};
+    state.manualQualify = {};
+    state.bracketMatches = {};
+    state.prelimBronze = {};
+    state.prelimResults = {};
+    state.activeCategory = null;
+    state.selectedPoolItem = null;
+    state.editingKey = null;
+    // Restore event identity
+    state.eventId = keepId;
+    state.eventTitle = keepTitle;
+    // Clear undo/redo stacks
+    undoStack.length = 0;
+    redoStack.length = 0;
+    // Reset UI
+    const h1 = document.getElementById('eventTitle');
+    if (h1) h1.textContent = keepTitle || '羽球賽務系統';
+    document.title = (keepTitle || '羽球賽務系統') + ' ' + APP_VERSION;
+    const ft = document.getElementById('finalTitle');
+    if (ft) ft.value = '';
+    refreshPoolList();
+    document.getElementById('scoringArea').innerHTML = '<div class="empty-state"><div class="icon">&#127941;</div><p>尚未開始賽事，請先至「名單設定」完成分組</p></div>';
+    document.getElementById('progressPanel').style.display = 'none';
+    const catBar = document.getElementById('finalsCategoryBar');
+    if (catBar) { catBar.style.display = 'none'; catBar.innerHTML = ''; }
+    const fOverview = document.getElementById('finalsOverview');
+    if (fOverview) fOverview.style.display = 'none';
+    const fContent = document.getElementById('finalsCategoryContent');
+    if (fContent) fContent.style.display = '';
+    const fCatTitle = document.getElementById('finalsCatTitle');
+    if (fCatTitle) fCatTitle.textContent = '決賽單淘汰管理區';
+    renderFinalsList();
+    document.getElementById('bracketArea').innerHTML = '';
+    document.getElementById('finalsScoreArea').innerHTML = '';
+    saveState();
+    saveCurrentEvent();
+    switchTab('setup');
+    showToast('已清除所有賽事資料', 'success');
 }
 
 async function deleteEvent(eventId) {
