@@ -277,6 +277,8 @@
             .header { padding: 10px 12px; gap: 8px; }
             .header h1 { font-size: 16px; }
             .header span { font-size: 11px; }
+            .header-right { flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+            .header-btn { font-size: 12px; padding: 5px 8px; }
             .theme-toggle { padding: 5px 10px; font-size: 12px; }
             .tab-btn { padding: 12px 6px; font-size: 13px; }
             .tab-content { padding: 10px 6px; }
@@ -324,7 +326,7 @@
             .finals-item .rank { width: 26px; height: 26px; font-size: 12px; }
 
             /* Bracket */
-            .bracket-round { margin-right: 16px; min-width: 150px; gap: 12px; }
+            .bracket-round { margin-right: 16px; min-width: 130px; gap: 12px; }
             .bracket-slot { padding: 8px 10px; font-size: 14px; }
 
             /* Standings table — keep readable on mobile */
@@ -371,7 +373,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v1.32';</script>
+    <script>const APP_VERSION = 'v1.33';</script>
 </head>
 <body>
 
@@ -463,6 +465,12 @@
                     <input type="file" accept=".xlsx,.xls" onchange="loadFromExcel(event)">
                 </button>
             </div>
+            <button class="btn btn-light" onclick="exportJSON()" title="匯出 JSON 備份（不需網路）">JSON 備份</button>
+            <div class="file-input-wrapper">
+                <button class="btn btn-light" style="position:relative;" title="匯入 JSON 備份">載入備份
+                    <input type="file" accept=".json" onchange="importJSON(event)">
+                </button>
+            </div>
         </div>
         <div class="ctrl-group">
             <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
@@ -540,6 +548,37 @@
 <div id="modalOverlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal()"></div>
 
 <script>
+// ╔══════════════════════════════════════════════════════════╗
+// ║               目 錄 索 引 (Table of Contents)            ║
+// ╠══════════════════════════════════════════════════════════╣
+// ║  Theme .......................... ~L548                   ║
+// ║  Modal helpers .................. ~L588                   ║
+// ║  QR Code Sharing ............... ~L677                   ║
+// ║  Screenshot Sharing ............ ~L710                   ║
+// ║  Multi-Event Management ........ ~L737                   ║
+// ║  Event Title ................... ~L978                   ║
+// ║  State ......................... ~L1012                  ║
+// ║  Global Constants .............. ~L1030                  ║
+// ║  Shared Utility Functions ...... ~L1036                  ║
+// ║  Multi-Category Finals Helpers . ~L1099                  ║
+// ║  Undo / Redo ................... ~L1185                  ║
+// ║  Persistence (localStorage) .... ~L1318                  ║
+// ║  Progress Panel ................ ~L1552                  ║
+// ║  Tab switching ................. ~L1649                  ║
+// ║  Toast ......................... ~L1674                  ║
+// ║  Tab 1: Setup .................. ~L1688                  ║
+// ║  Tab 2: Smart grouping + scoring ~L1817                  ║
+// ║  Tab 3: Finals — Tab Bar ....... ~L2313                  ║
+// ║  Tab 3: Finals — Per-Category .. ~L2404                  ║
+// ║  Combined Full Report .......... ~L2969                  ║
+// ║  Match Sheets (出賽單) ......... ~L3339                  ║
+// ║  Save / Load (.xlsx) ........... ~L3556                  ║
+// ║  Excel export (成績報表) ....... ~L3668                  ║
+// ║  Chart View — 對戰圖 (SVG) .... ~L3812                  ║
+// ║  Utils ......................... ~L4257                  ║
+// ║  Download template Excel ....... ~L4294                  ║
+// ╚══════════════════════════════════════════════════════════╝
+
 // ============================================================
 // Theme
 // ============================================================
@@ -3657,6 +3696,77 @@ async function loadFromExcel(event) {
         }
     };
     reader.readAsArrayBuffer(file);
+    event.target.value = '';
+}
+
+// ============================================================
+// JSON Backup / Restore (不需網路，不依賴 xlsx)
+// ============================================================
+function exportJSON() {
+    if (Object.keys(state.activeGroups).length === 0 && Object.keys(state.setupPool).length === 0) {
+        showToast('尚無資料可備份', 'error'); return;
+    }
+    const data = JSON.stringify(serializeState(), null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    const ts = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') +
+               '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+    a.href = url;
+    a.download = '羽球賽務備份_' + ts + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('JSON 備份已下載', 'success');
+}
+
+async function importJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (Object.keys(state.activeGroups).length > 0 || Object.keys(state.setupPool).length > 0) {
+        if (!await customConfirm('載入備份將覆蓋目前所有資料，確定要繼續嗎？')) {
+            event.target.value = ''; return;
+        }
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const saved = JSON.parse(e.target.result);
+            if (!saved.setupPool && !saved.activeGroups) {
+                showToast('此檔案非賽務備份（格式不正確）', 'error'); return;
+            }
+            pushUndo();
+            state.setupPool = saved.setupPool || {};
+            state.activeGroups = saved.activeGroups || {};
+            state.manualQualify = saved.manualQualify || {};
+            migrateFinalQualifiers(saved);
+            state.prelimBronze = saved.prelimBronze || {};
+            state.prelimResults = saved.prelimResults || {};
+            state.eventTitle = saved.eventTitle || '';
+            undoStack.length = 0;
+            redoStack.length = 0;
+            refreshPoolList();
+            if (Object.keys(state.activeGroups).length > 0) {
+                rebuildScoringUI(saved.scores || {});
+            }
+            if (hasFinalQualifiers()) {
+                renderFinalsTabBar();
+                const cats = getFinalsCategories();
+                if (cats.length > 0) {
+                    state.activeCategory = cats[0];
+                    switchFinalsCategory(cats[0]);
+                }
+            }
+            const h1 = document.getElementById('eventTitle');
+            if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
+            document.title = (state.eventTitle || '羽球賽務系統') + ' ' + APP_VERSION;
+            saveState();
+            showToast('JSON 備份載入成功', 'success');
+        } catch (err) {
+            showToast('載入失敗: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
     event.target.value = '';
 }
 
