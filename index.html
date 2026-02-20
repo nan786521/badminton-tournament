@@ -371,7 +371,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v19.28';</script>
+    <script>const APP_VERSION = 'v19.29';</script>
 </head>
 <body>
 
@@ -516,7 +516,7 @@
                     <p>尚無晉級者，請先在預賽計分中結算冠軍</p>
                 </li>
             </ul>
-            <div class="action-bar" style="margin-top: 12px; flex-wrap: wrap;">
+            <div class="action-bar" id="finalsActionBar" style="margin-top: 12px; flex-wrap: wrap;">
                 <button class="btn btn-light" onclick="shuffleFinals()">抽籤</button>
                 <button class="btn btn-success" onclick="generateBracket()">產生對戰圖</button>
                 <button class="btn btn-primary" onclick="generateFinalsScoreTable()">對戰表</button>
@@ -524,6 +524,10 @@
                 <button class="btn btn-light" onclick="generateFinalsSheets()">出賽單</button>
                 <button class="btn btn-warning" onclick="exportFinalsExcel()">下載 Excel</button>
                 <button class="btn btn-light" onclick="captureScreenshot('bracketArea')">截圖</button>
+            </div>
+            <div class="action-bar" id="prelimActionBar" style="margin-top: 12px; flex-wrap: wrap; display: none;">
+                <button class="btn btn-danger" onclick="printResultAnnouncement()">成績公告</button>
+                <button class="btn btn-light" onclick="generateFullReport()">綜合報表</button>
             </div>
         </div>
         <div id="finalsScoreArea"></div>
@@ -2226,10 +2230,8 @@ function promoteWinners() {
     }
 
     state.activeCategory = Object.keys(allWinners)[0];
-    renderFinalsTabBar();
-    renderFinalsList();
-    if (getCurrentBracketMatches()?.length > 0) renderInteractiveBracket();
     switchTab('finals');
+    switchFinalsCategory(state.activeCategory);
     saveState();
     const catCount = Object.keys(allWinners).length;
     let msg = `${totalCount} 位選手晉級決賽（${catCount} 個項目）`;
@@ -2280,14 +2282,20 @@ function switchFinalsCategory(cat) {
         content.style.display = '';
         const isPrelimOnly = state.prelimResults && state.prelimResults[cat] && (!state.bracketMatches[cat] || state.bracketMatches[cat].length === 0);
         document.getElementById('finalsCatTitle').textContent = cat + (isPrelimOnly ? ' — 預賽成績' : ' — 決賽單淘汰管理區');
-        renderFinalsList();
-        document.getElementById('finalsScoreArea').innerHTML = '';
-        const bm = getCurrentBracketMatches();
-        if (bm && bm.length > 0) renderInteractiveBracket();
-        else {
+        // Toggle action bars: bracket vs prelim
+        document.getElementById('finalsActionBar').style.display = isPrelimOnly ? 'none' : '';
+        document.getElementById('prelimActionBar').style.display = isPrelimOnly ? '' : 'none';
+        if (isPrelimOnly) {
+            renderPrelimFinalsList(cat);
+            document.getElementById('finalsScoreArea').innerHTML = '';
             document.getElementById('bracketArea').innerHTML = '';
-            // Show result card for prelim-only categories
-            if (isPrelimOnly) renderPrelimResultCard(cat);
+            renderPrelimResultCard(cat);
+        } else {
+            renderFinalsList();
+            document.getElementById('finalsScoreArea').innerHTML = '';
+            const bm = getCurrentBracketMatches();
+            if (bm && bm.length > 0) renderInteractiveBracket();
+            else document.getElementById('bracketArea').innerHTML = '';
         }
     }
     renderFinalsTabBar();
@@ -2353,6 +2361,28 @@ function renderFinalsList() {
         const li = document.createElement('li');
         li.className = 'finals-item';
         li.innerHTML = `<span class="rank">${i + 1}</span><span>${q.label}：${alignName(q.name, aw.sw, aw.nw)}</span>`;
+        list.appendChild(li);
+    });
+}
+
+function renderPrelimFinalsList(cat) {
+    const list = document.getElementById('finalsList');
+    Array.from(list.querySelectorAll('.finals-item')).forEach(el => el.remove());
+    let empty = document.getElementById('finalsEmpty');
+    if (empty) empty.style.display = 'none';
+
+    const result = state.prelimResults[cat];
+    if (!result) return;
+    const medals = ['🥇', '🥈', '🥉'];
+    const labels = ['冠軍', '亞軍', '季軍', '殿軍'];
+    const players = [result.champion, result.runnerUp, ...(result.bronzes || [])];
+    if (result.fourth) players.push(result.fourth);
+    const aw = getAlignWidths(players);
+    players.forEach((name, i) => {
+        const li = document.createElement('li');
+        li.className = 'finals-item';
+        const medal = medals[i] || '';
+        li.innerHTML = `<span class="rank">${medal || (i + 1)}</span><span>${labels[i] || '第' + (i + 1) + '名'}：${alignName(name, aw.sw, aw.nw)}</span>`;
         list.appendChild(li);
     });
 }
