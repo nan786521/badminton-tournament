@@ -371,7 +371,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v1.30';</script>
+    <script>const APP_VERSION = 'v1.31';</script>
 </head>
 <body>
 
@@ -3377,8 +3377,7 @@ async function generateFinalsSheets() {
         const rName = getRoundName(r, rounds);
         currentRound.forEach(([p1, p2]) => {
             if (p1 === '—BYE—' || p2 === '—BYE—') {
-                // Auto advance BYE, still increment matchNo
-                matchNo++;
+                // Auto advance BYE, skip matchNo (BYE is not a real match)
                 return;
             }
             matches.push({
@@ -4157,12 +4156,13 @@ function buildBracketSVG(qualifiers, totalWidth, isDoubles) {
 
         currentSlots.forEach((match, mi) => {
             const my = 60 + mi * spacing + spacing / 2 - matchH / 2;
-            const matchNo = globalMatchNo++;
 
             const p1Text = match.p1 || '輪空';
             const p2Text = match.p2 || '輪空';
             const isBye1 = !match.p1;
             const isBye2 = !match.p2;
+            const isByeMatch = isBye1 || isBye2;
+            const matchNo = isByeMatch ? null : globalMatchNo++;
 
             // Box
             s += `<rect x="${rx}" y="${my}" width="${roundW}" height="${matchH}" rx="4" fill="white" stroke="#999" stroke-width="1"/>`;
@@ -4193,8 +4193,8 @@ function buildBracketSVG(qualifiers, totalWidth, isDoubles) {
                 s += `<text x="${rx + 8}" y="${textY2}" font-size="${fontSize}" font-family="Microsoft JhengHei, sans-serif" fill="${isBye2 ? '#ccc' : '#333'}">${escapeXml(p2Text)}</text>`;
             }
 
-            // Match number
-            s += matchNumLabel(rx + roundW + 14, my + matchH / 2, matchNo, fontSize);
+            // Match number (skip for BYE matches)
+            if (matchNo) s += matchNumLabel(rx + roundW + 14, my + matchH / 2, matchNo, fontSize);
 
             // Connector lines to next round
             if (r < rounds - 1) {
