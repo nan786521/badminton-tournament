@@ -4376,7 +4376,12 @@ function openPrintWindow() {
 // Match number label: *N format
 function matchNumLabel(x, y, num, fontSize) {
     fontSize = fontSize || 12;
-    return `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="${fontSize}" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#333">*${num}</text>`;
+    const text = '*' + num;
+    const pad = 3;
+    const rw = text.length * fontSize * 0.35 + pad * 2;
+    const rh = fontSize + pad * 2;
+    return `<rect x="${x - rw}" y="${y - rh / 2 + 2}" width="${rw * 2}" height="${rh}" rx="3" fill="#fff"/>` +
+           `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="${fontSize}" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#333">${text}</text>`;
 }
 
 // Player label — two lines: school on top, name below
