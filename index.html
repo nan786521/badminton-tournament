@@ -1980,11 +1980,38 @@ async function startTournament() {
         catDiv.innerHTML = `<div class="category-header"><h3>${escapeXml(cat)}（共 ${n} 人）</h3></div>`;
         area.appendChild(catDiv);
 
-        let matchCounter = 1;
         const catGroups = [];
 
-        groups.forEach((members, gi) => {
+        // Step 1: Generate pairings for each group, split into rounds
+        const groupData = groups.map((members, gi) => {
             const gName = String.fromCharCode(65 + gi);
+            const pairings = getPairings(members.length);
+            const matchesPerRound = Math.floor(members.length / 2) || 1;
+            const rounds = [];
+            for (let r = 0; r < pairings.length; r += matchesPerRound) {
+                rounds.push(pairings.slice(r, r + matchesPerRound));
+            }
+            return { gName, members, rounds };
+        });
+
+        // Step 2: Interleave match numbers across groups by round
+        const maxRounds = Math.max(...groupData.map(g => g.rounds.length));
+        let matchCounter = 1;
+        const matchNoMap = {}; // key: "gi_pairingIdx" -> matchNo
+        for (let r = 0; r < maxRounds; r++) {
+            groupData.forEach((g, gi) => {
+                if (r < g.rounds.length) {
+                    const matchesPerRound = Math.floor(g.members.length / 2) || 1;
+                    g.rounds[r].forEach((pair, mi) => {
+                        matchNoMap[gi + '_' + (r * matchesPerRound + mi)] = matchCounter++;
+                    });
+                }
+            });
+        }
+
+        // Step 3: Build UI with interleaved match numbers
+        groupData.forEach((g, gi) => {
+            const { gName, members } = g;
             const pairings = getPairings(members.length);
             const aw = getAlignWidths(members);
             const groupCard = document.createElement('div');
@@ -1992,8 +2019,8 @@ async function startTournament() {
             groupCard.innerHTML = `<h4>${escapeXml(gName)} 組（${members.length} 人：${members.map(n => escapeXml(n)).join('、')}）</h4>`;
 
             const matches = [];
-            pairings.forEach(([i, j]) => {
-                const matchNo = matchCounter++;
+            pairings.forEach(([i, j], pi) => {
+                const matchNo = matchNoMap[gi + '_' + pi];
                 const matchId = `${cat}_${gName}_${matchNo}`;
                 const row = document.createElement('div');
                 row.className = 'match-row';
