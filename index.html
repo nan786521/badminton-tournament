@@ -1042,6 +1042,7 @@ const state = {
     prelimResults: {},      // { catName: { champion, runnerUp, bronzes[], fourth, matches[] } } — results from single-group categories
     activeCategory: null,   // Currently selected category in finals tab
     eventTitle: '',         // Custom event title
+    matchDate: '',          // 比賽日期 (e.g. "2025/11/02")
     eventId: null,          // Multi-event ID
     selectedPoolItem: null,
     editingKey: null
@@ -1285,6 +1286,7 @@ function restoreSnapshot(snap) {
     state.prelimResults = saved.prelimResults || {};
     state.activeCategory = saved.activeCategory || null;
     state.eventTitle = saved.eventTitle || '';
+    state.matchDate = saved.matchDate || '';
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
 
@@ -1422,6 +1424,7 @@ function loadState() {
             }
         }
         state.eventTitle = saved.eventTitle || '';
+    state.matchDate = saved.matchDate || '';
         const h1 = document.getElementById('eventTitle');
         if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
         document.title = (state.eventTitle || '羽球賽務系統') + ' ' + APP_VERSION;
@@ -3530,6 +3533,8 @@ async function generatePrelimSheets() {
     if (Object.keys(state.activeGroups).length === 0) { showToast('尚無比賽資料', 'error'); return; }
     const title = await customPrompt('請輸入賽事名稱', getEventTitle());
     if (!title) return;
+    const matchDate = await customPrompt('請輸入比賽日期（如 2025/11/02，留空則不填入）', state.matchDate || '');
+    if (matchDate !== null) { state.matchDate = matchDate; saveState(); }
 
     const matches = [];
     for (const cat in state.activeGroups) {
@@ -3551,7 +3556,7 @@ async function generatePrelimSheets() {
             });
         });
     }
-    openMatchSheets(matches, title);
+    openMatchSheets(matches, title, matchDate);
 }
 
 async function generateFinalsSheets() {
@@ -3560,6 +3565,8 @@ async function generateFinalsSheets() {
     const catPrefix = state.activeCategory ? state.activeCategory + ' ' : '';
     const title = await customPrompt('請輸入賽事名稱', catPrefix + (document.getElementById('finalTitle').value.trim() || getEventTitle()));
     if (!title) return;
+    const matchDate = await customPrompt('請輸入比賽日期（如 2025/11/02，留空則不填入）', state.matchDate || '');
+    if (matchDate !== null) { state.matchDate = matchDate; saveState(); }
     const isDoubles = state.activeCategory && state.setupPool[state.activeCategory] && state.setupPool[state.activeCategory].type === '雙打';
 
     const realPlayers2 = qualifiers.map(q => q.name);
@@ -3614,10 +3621,10 @@ async function generateFinalsSheets() {
             isDoubles
         });
     }
-    openMatchSheets(matches, title);
+    openMatchSheets(matches, title, matchDate);
 }
 
-function openMatchSheets(matches, title) {
+function openMatchSheets(matches, title, matchDate) {
     const win = openPrintWindow();
     if (!win) return;
     const doc = win.document;
@@ -3673,7 +3680,11 @@ function openMatchSheets(matches, title) {
             doc.write('<div class="sheet-subtitle">出賽單</div>');
             doc.write('<div class="sheet-info">');
             doc.write('<div class="left">');
-            doc.write('<div style="white-space:nowrap;">日期 <span class="blank" style="min-width:60px;">&nbsp;</span>/<span class="blank" style="min-width:30px;">&nbsp;</span>/<span class="blank" style="min-width:30px;">&nbsp;</span> &nbsp;時間 <span class="blank-sm" style="min-width:30px;">&nbsp;</span>:<span class="blank-sm" style="min-width:30px;">&nbsp;</span></div>');
+            if (matchDate) {
+                doc.write('<div style="white-space:nowrap;">日期 <b>' + escapeXml(matchDate) + '</b> &nbsp;時間 <span class="blank-sm" style="min-width:30px;">&nbsp;</span>:<span class="blank-sm" style="min-width:30px;">&nbsp;</span></div>');
+            } else {
+                doc.write('<div style="white-space:nowrap;">日期 <span class="blank" style="min-width:60px;">&nbsp;</span>/<span class="blank" style="min-width:30px;">&nbsp;</span>/<span class="blank" style="min-width:30px;">&nbsp;</span> &nbsp;時間 <span class="blank-sm" style="min-width:30px;">&nbsp;</span>:<span class="blank-sm" style="min-width:30px;">&nbsp;</span></div>');
+            }
             doc.write('<div>組別 ' + escapeXml(m.category) + '</div>');
             doc.write('<div>場地 <span class="blank" style="min-width:140px;">&nbsp;</span></div>');
             doc.write('</div>');
@@ -3854,6 +3865,7 @@ async function loadFromExcel(event) {
             state.prelimBronze = saved.prelimBronze || {};
             state.prelimResults = saved.prelimResults || {};
             state.eventTitle = saved.eventTitle || '';
+    state.matchDate = saved.matchDate || '';
             const h1 = document.getElementById('eventTitle');
             if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
             document.title = (state.eventTitle || '羽球賽務系統') + ' ' + APP_VERSION;
@@ -3925,6 +3937,7 @@ async function importJSON(event) {
             state.prelimBronze = saved.prelimBronze || {};
             state.prelimResults = saved.prelimResults || {};
             state.eventTitle = saved.eventTitle || '';
+    state.matchDate = saved.matchDate || '';
             undoStack.length = 0;
             redoStack.length = 0;
             refreshPoolList();
