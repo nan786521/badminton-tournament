@@ -341,6 +341,11 @@
             .btn-lg { padding: 12px 20px; font-size: 15px; }
         }
 
+        /* Search */
+        .search-input { width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid var(--border-input); border-radius: 20px; font-size: 14px; background: var(--score-input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 12px center; color: var(--text); outline: none; transition: border-color 0.2s; }
+        .search-input:focus { border-color: #1a73e8; }
+        .search-highlight { background: #fff3cd; outline: 2px solid #f9ab00; border-radius: 3px; }
+
         /* Modal overlay */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; }
         .modal-card { background: var(--bg-card); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); position: relative; max-height: 80vh; overflow-y: auto; }
@@ -373,7 +378,7 @@
         .event-item button { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: var(--btn-light-bg); color: var(--btn-light-text); }
         .event-item button.del { color: #ea4335; border-color: #ea4335; }
     </style>
-    <script>const APP_VERSION = 'v1.33';</script>
+    <script>const APP_VERSION = 'v1.35';</script>
 </head>
 <body>
 
@@ -453,6 +458,9 @@
 
 <!-- Tab 2: Scoring -->
 <div id="tab-scoring" class="tab-content" role="tabpanel" aria-labelledby="btn-scoring">
+    <div style="margin-bottom:8px;">
+        <input type="search" id="playerSearch" class="search-input" placeholder="搜尋選手姓名..." aria-label="搜尋選手">
+    </div>
     <div class="control-bar">
         <span class="title">預賽控制台</span>
         <span id="saveIndicator" role="status" aria-live="polite" style="font-size:12px;color:var(--text-hint);"></span>
@@ -474,6 +482,7 @@
         </div>
         <div class="ctrl-group">
             <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
+            <button class="btn btn-light" onclick="exportCSV()">CSV</button>
             <button class="btn btn-light" onclick="generateFullReport()">綜合報表</button>
             <button class="btn btn-light" onclick="openChartView()">列印對戰圖</button>
             <button class="btn btn-light" onclick="generatePrelimSheets()">出賽單</button>
@@ -828,10 +837,30 @@ function loadEvent(eventId) {
     showToast('已載入賽事', 'success');
 }
 
+function _resetTournamentUI(displayTitle) {
+    const h1 = document.getElementById('eventTitle');
+    if (h1) h1.textContent = displayTitle || '羽球賽務系統';
+    document.title = (displayTitle || '羽球賽務系統') + ' ' + APP_VERSION;
+    const ft = document.getElementById('finalTitle');
+    if (ft) ft.value = '';
+    refreshPoolList();
+    document.getElementById('scoringArea').innerHTML = '<div class="empty-state"><div class="icon">&#127941;</div><p>尚未開始賽事，請先至「名單設定」完成分組</p></div>';
+    document.getElementById('progressPanel').style.display = 'none';
+    const catBar = document.getElementById('finalsCategoryBar');
+    if (catBar) { catBar.style.display = 'none'; catBar.innerHTML = ''; }
+    const fOverview = document.getElementById('finalsOverview');
+    if (fOverview) fOverview.style.display = 'none';
+    const fContent = document.getElementById('finalsCategoryContent');
+    if (fContent) fContent.style.display = '';
+    const fCatTitle = document.getElementById('finalsCatTitle');
+    if (fCatTitle) fCatTitle.textContent = '決賽單淘汰管理區';
+    renderFinalsList();
+    document.getElementById('bracketArea').innerHTML = '';
+    document.getElementById('finalsScoreArea').innerHTML = '';
+}
+
 function createNewEvent() {
-    // Save current first
     saveCurrentEvent();
-    // Clear state
     state.setupPool = {};
     state.activeGroups = {};
     state.finalQualifiers = {};
@@ -844,29 +873,9 @@ function createNewEvent() {
     state.selectedPoolItem = null;
     state.editingKey = null;
     state.eventId = generateEventId();
-    // Clear undo/redo stacks
     undoStack.length = 0;
     redoStack.length = 0;
-    // Reset UI
-    const h1 = document.getElementById('eventTitle');
-    if (h1) h1.textContent = '羽球賽務系統';
-    document.title = '羽球賽務系統 ' + APP_VERSION;
-    const ft = document.getElementById('finalTitle');
-    if (ft) ft.value = '';
-    refreshPoolList();
-    document.getElementById('scoringArea').innerHTML = '<div class="empty-state"><div class="icon">&#127941;</div><p>尚未開始賽事，請先至「名單設定」完成分組</p></div>';
-    document.getElementById('progressPanel').style.display = 'none';
-    const catBar = document.getElementById('finalsCategoryBar');
-    if (catBar) { catBar.style.display = 'none'; catBar.innerHTML = ''; }
-    const fOverview = document.getElementById('finalsOverview');
-    if (fOverview) fOverview.style.display = 'none';
-    const fContent = document.getElementById('finalsCategoryContent');
-    if (fContent) fContent.style.display = '';
-    const fCatTitle = document.getElementById('finalsCatTitle');
-    if (fCatTitle) fCatTitle.textContent = '決賽單淘汰管理區';
-    renderFinalsList();
-    document.getElementById('bracketArea').innerHTML = '';
-    document.getElementById('finalsScoreArea').innerHTML = '';
+    _resetTournamentUI('羽球賽務系統');
     saveState();
     saveCurrentEvent();
     closeModal();
@@ -876,10 +885,8 @@ function createNewEvent() {
 
 async function clearCurrentData() {
     if (!await customConfirm('確定要清除目前賽事的所有資料嗎？\n（名單、分組、比分、決賽結果都會被清除）')) return;
-    // Keep event identity
     const keepId = state.eventId;
     const keepTitle = state.eventTitle;
-    // Clear all tournament data
     state.setupPool = {};
     state.activeGroups = {};
     state.finalQualifiers = {};
@@ -890,32 +897,11 @@ async function clearCurrentData() {
     state.activeCategory = null;
     state.selectedPoolItem = null;
     state.editingKey = null;
-    // Restore event identity
     state.eventId = keepId;
     state.eventTitle = keepTitle;
-    // Clear undo/redo stacks
     undoStack.length = 0;
     redoStack.length = 0;
-    // Reset UI
-    const h1 = document.getElementById('eventTitle');
-    if (h1) h1.textContent = keepTitle || '羽球賽務系統';
-    document.title = (keepTitle || '羽球賽務系統') + ' ' + APP_VERSION;
-    const ft = document.getElementById('finalTitle');
-    if (ft) ft.value = '';
-    refreshPoolList();
-    document.getElementById('scoringArea').innerHTML = '<div class="empty-state"><div class="icon">&#127941;</div><p>尚未開始賽事，請先至「名單設定」完成分組</p></div>';
-    document.getElementById('progressPanel').style.display = 'none';
-    const catBar = document.getElementById('finalsCategoryBar');
-    if (catBar) { catBar.style.display = 'none'; catBar.innerHTML = ''; }
-    const fOverview = document.getElementById('finalsOverview');
-    if (fOverview) fOverview.style.display = 'none';
-    const fContent = document.getElementById('finalsCategoryContent');
-    if (fContent) fContent.style.display = '';
-    const fCatTitle = document.getElementById('finalsCatTitle');
-    if (fCatTitle) fCatTitle.textContent = '決賽單淘汰管理區';
-    renderFinalsList();
-    document.getElementById('bracketArea').innerHTML = '';
-    document.getElementById('finalsScoreArea').innerHTML = '';
+    _resetTournamentUI(keepTitle);
     saveState();
     saveCurrentEvent();
     switchTab('setup');
@@ -1082,6 +1068,27 @@ function getMatchScores(matchId) {
         n1: s1El ? parseInt(s1El.value) : NaN,
         n2: s2El ? parseInt(s2El.value) : NaN
     };
+}
+
+// Badminton score rule check (non-blocking warnings)
+function checkBadmintonScore(s1, s2) {
+    if (isNaN(s1) || isNaN(s2) || s1 === '' || s2 === '') return;
+    const a = parseInt(s1), b = parseInt(s2);
+    if (isNaN(a) || isNaN(b)) return;
+    if (a > 30 || b > 30) {
+        showToast('提醒：分數超過 30 分上限', 'warning'); return;
+    }
+    if (a >= 20 && b >= 20) {
+        const hi = Math.max(a, b), lo = Math.min(a, b);
+        if (hi < 30 && hi - lo !== 2 && hi - lo !== 0) {
+            showToast('提醒：20 平後需贏 2 分（如 22:20、23:21）', 'warning');
+        }
+    } else {
+        const hi = Math.max(a, b), lo = Math.min(a, b);
+        if (hi > 21) {
+            showToast('提醒：正常比賽得分上限為 21 分', 'warning');
+        }
+    }
 }
 
 // Collect voluntary/injury players from a group's matches
@@ -1322,14 +1329,16 @@ document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
     if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
 
-    // Enter key: jump to next score input
+    // Enter / Shift+Enter: jump between score inputs
     if (e.key === 'Enter' && (e.target.classList.contains('score-input') || e.target.classList.contains('bracket-score'))) {
         e.preventDefault();
-        const cls = e.target.classList.contains('score-input') ? '.score-input' : '.bracket-score';
+        const cls = e.target.classList.contains('score-input') ? '.score-input:not([disabled])' : '.bracket-score:not([disabled])';
         const allInputs = Array.from(document.querySelectorAll(cls));
         const idx = allInputs.indexOf(e.target);
-        if (idx >= 0 && idx < allInputs.length - 1) {
-            allInputs[idx + 1].focus();
+        const next = e.shiftKey ? idx - 1 : idx + 1;
+        if (next >= 0 && next < allInputs.length) {
+            allInputs[next].focus();
+            allInputs[next].select();
         }
     }
 });
@@ -1662,12 +1671,25 @@ document.addEventListener('change', function(e) {
             e.target.value = 0;
             showToast('分數不可為負數', 'error');
         }
-        // Warn both-zero for prelim
+        // Warn both-zero for prelim + badminton rule check
         if (isScore) {
             const matchId = e.target.id.replace(/^s[12]_/, '');
             const { v1, v2 } = getMatchScores(matchId);
             if (v1 === '0' && v2 === '0') {
                 showToast('提醒：雙方分數皆為 0', 'warning');
+            } else if (v1 !== '' && v2 !== '') {
+                checkBadmintonScore(v1, v2);
+            }
+        }
+        if (isBracket) {
+            const matchId = e.target.id.replace(/^bs[12]_/, '');
+            const s1El = document.getElementById('bs1_' + matchId);
+            const s2El = document.getElementById('bs2_' + matchId);
+            if (s1El && s2El && s1El.value !== '' && s2El.value !== '') {
+                checkBadmintonScore(s1El.value, s2El.value);
+                if (parseInt(s1El.value) === parseInt(s2El.value)) {
+                    showToast('決賽分數相同，無法判定勝者', 'warning');
+                }
             }
         }
         // Cancel pending debounce and save immediately on blur/change
@@ -1704,6 +1726,50 @@ document.querySelector('.tabs').addEventListener('keydown', function(e) {
         document.querySelectorAll('.tab-btn')[next].focus();
     }
 });
+
+// ============================================================
+// Player Search
+// ============================================================
+(function() {
+    let _searchTimer = null;
+    const searchInput = document.getElementById('playerSearch');
+    if (!searchInput) return;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(_searchTimer);
+        _searchTimer = setTimeout(doPlayerSearch, 300);
+    });
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { searchInput.value = ''; clearSearchHighlight(); }
+    });
+})();
+
+function clearSearchHighlight() {
+    document.querySelectorAll('.search-highlight').forEach(el => el.classList.remove('search-highlight'));
+}
+
+function doPlayerSearch() {
+    clearSearchHighlight();
+    const q = (document.getElementById('playerSearch').value || '').trim().toLowerCase();
+    if (!q) return;
+    const matches = [];
+    document.querySelectorAll('.player-name').forEach(el => {
+        let text = '';
+        el.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
+            else if (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('ff-badge')) text += node.textContent;
+        });
+        if (text.toLowerCase().includes(q)) {
+            matches.push(el);
+        }
+    });
+    if (matches.length === 0) {
+        showToast('找不到「' + escapeXml(q) + '」', 'warning');
+        return;
+    }
+    matches.forEach(el => el.classList.add('search-highlight'));
+    matches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('找到 ' + matches.length + ' 筆結果', 'success');
+}
 
 // ============================================================
 // Toast
@@ -2024,7 +2090,14 @@ function getScores(cat, group) {
 }
 
 function sameRecord(a, b) {
-    return a.wins === b.wins && a.losses === b.losses;
+    return a.wins === b.wins && a.losses === b.losses && (a.pf - a.pa) === (b.pf - b.pa);
+}
+
+function rankPlayers(scores) {
+    return Object.entries(scores).sort((a, b) => {
+        if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
+        return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
+    });
 }
 
 function renderStandings(cat, gName) {
@@ -2036,10 +2109,7 @@ function renderStandings(cat, gName) {
 
     const { voluntary: voluntaryPlayers, injury: injuryPlayers } = collectForfeitPlayers(group);
 
-    const ranked = Object.entries(scores).sort((a, b) => {
-        if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
-        return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
-    });
+    const ranked = rankPlayers(scores);
 
     const totalInCat = groups.reduce((s, g) => s + g.members.length, 0);
     const nQualify = getQualifyCount(group.members.length, totalInCat);
@@ -2092,7 +2162,87 @@ function renderStandings(cat, gName) {
         html += `<td>${rank + 1}${autoQualified && !isVoluntary ? ' &#10004;' : ''}</td><td>${alignName(group.members[idx], aw.sw, aw.nw)}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.forfeits || 0}</td><td>${s.pf}</td><td>${s.pa}</td><td>${s.pf - s.pa}</td><td>${note}</td></tr>`;
     });
     html += '</tbody></table>';
+    html += `<button class="btn btn-light" style="margin-top:6px;font-size:12px;" onclick="printGroupStandings('${escapeJsInAttr(cat)}','${escapeJsInAttr(gName)}')">列印本組</button>`;
     div.innerHTML = html;
+}
+
+function printGroupStandings(cat, gName) {
+    const groups = state.activeGroups[cat];
+    const group = groups ? groups.find(g => g.name === gName) : null;
+    if (!group) { showToast('找不到該組資料', 'error'); return; }
+    const { scores, hasScore } = getScores(cat, group);
+    if (!hasScore) { showToast('請先輸入比分', 'error'); return; }
+
+    const { voluntary: voluntaryPlayers, injury: injuryPlayers } = collectForfeitPlayers(group);
+    const ranked = rankPlayers(scores);
+    const totalInCat = groups.reduce((s, g) => s + g.members.length, 0);
+    const nQ = getQualifyCount(group.members.length, totalInCat);
+
+    const eventTitle = getEventTitle();
+    const today = new Date();
+    const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
+    const pdfTitle = eventTitle + ' ' + cat + ' ' + gName + '組 成績表';
+
+    const win = openPrintWindow();
+    if (!win) return;
+    const doc = win.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+    doc.write('<title>' + escapeXml(pdfTitle) + '</title>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></scr' + 'ipt>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
+    doc.write('<style>');
+    doc.write('@media print { body { margin: 0; } .no-print { display: none !important; } @page { margin: 12mm; size: portrait; } }');
+    doc.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
+    doc.write('body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #fff; color: #222; }');
+    doc.write('.no-print { text-align: center; padding: 12px; background: #f5f5f5; border-bottom: 1px solid #ddd; }');
+    doc.write('.no-print button { padding: 8px 16px; font-size: 14px; border-radius: 6px; cursor: pointer; margin: 0 4px; font-weight: 600; border: none; }');
+    doc.write('.btn-print { background: #1a73e8; color: #fff; } .btn-pdf { background: #ea4335; color: #fff; }');
+    doc.write('.report { max-width: 700px; margin: 0 auto; padding: 30px 40px; }');
+    doc.write('.rpt-header { text-align: center; padding-bottom: 20px; margin-bottom: 24px; border-bottom: 3px double #333; }');
+    doc.write('.rpt-event { font-size: 24px; font-weight: 900; letter-spacing: 3px; margin-bottom: 4px; }');
+    doc.write('.rpt-subtitle { font-size: 18px; font-weight: 700; color: #444; margin-bottom: 6px; }');
+    doc.write('.rpt-date { font-size: 13px; color: #666; }');
+    doc.write('table { width: 100%; border-collapse: collapse; margin-top: 16px; }');
+    doc.write('th { background: #f5f5f5; padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; font-size: 13px; }');
+    doc.write('td { padding: 7px 10px; border-bottom: 1px solid #eee; font-size: 13px; }');
+    doc.write('tr.qualified { background: #e6f4ea; } tr.qualified td:first-child { font-weight: 700; color: #137333; }');
+    doc.write('tr { page-break-inside: avoid; }');
+    doc.write('.note-forfeit { color: #ea4335; font-weight: 600; } .note-injury { color: #e67e00; font-weight: 600; }');
+    doc.write('.rpt-footer { margin-top: 28px; padding-top: 16px; border-top: 3px double #333; text-align: center; font-size: 13px; color: #888; }');
+    doc.write('</style>');
+    doc.write('</head><body>');
+
+    doc.write('<div class="no-print"><button class="btn-print" onclick="window.print()">列印</button><button class="btn-pdf" onclick="downloadPDF()">下載 PDF</button></div>');
+    doc.write('<div class="report" id="reportContent">');
+    doc.write('<div class="rpt-header">');
+    doc.write('<div class="rpt-event">' + escapeXml(eventTitle) + '</div>');
+    doc.write('<div class="rpt-subtitle">' + escapeXml(cat) + ' ' + escapeXml(gName) + '組 成績表</div>');
+    doc.write('<div class="rpt-date">' + dateStr + '</div>');
+    doc.write('</div>');
+
+    doc.write('<table><thead><tr><th>排名</th><th>選手</th><th>勝</th><th>負</th><th>棄權</th><th>得分</th><th>失分</th><th>淨分</th><th>備註</th></tr></thead><tbody>');
+    ranked.forEach(([idx, s], rank) => {
+        const isQ = rank < nQ;
+        const isV = voluntaryPlayers.has(parseInt(idx));
+        const isI = injuryPlayers.has(parseInt(idx));
+        let note = isV ? '<span class="note-forfeit">棄（不晉級）</span>' : (isI ? '<span class="note-injury">傷</span>' : '');
+        if (isQ && !isV) note += (note ? ' ' : '') + '晉級';
+        doc.write('<tr' + (isQ && !isV ? ' class="qualified"' : '') + (isV ? ' style="opacity:0.5;"' : '') + '>');
+        doc.write('<td>' + (rank + 1) + '</td>');
+        doc.write('<td>' + escapeXml(group.members[parseInt(idx)]) + '</td>');
+        doc.write('<td>' + s.wins + '</td><td>' + s.losses + '</td><td>' + (s.forfeits || 0) + '</td>');
+        doc.write('<td>' + s.pf + '</td><td>' + s.pa + '</td><td>' + (s.pf - s.pa) + '</td>');
+        doc.write('<td>' + note + '</td></tr>');
+    });
+    doc.write('</tbody></table>');
+
+    doc.write('<div class="rpt-footer">' + escapeXml(eventTitle) + ' 大會製</div>');
+    doc.write('</div>');
+
+    _writeReportPDFScript(doc, pdfTitle);
+    doc.write('</body></html>');
+    doc.close();
 }
 
 function onTieCheck(groupKey, nQualify) {
@@ -2125,7 +2275,8 @@ function onTieCheck(groupKey, nQualify) {
 
 function getQualifyCount(nMembers, totalInCat) {
     if (totalInCat === 5) return 2;
-    if (nMembers === 4) return 2;
+    if (nMembers >= 6) return Math.ceil(nMembers / 2);
+    if (nMembers >= 4) return 2;
     return 1;
 }
 
@@ -2133,10 +2284,7 @@ function getGroupQualifiers(cat, group) {
     const { scores, hasScore } = getScores(cat, group);
     if (!hasScore) return [];
     const { voluntary: voluntaryPlayers } = collectForfeitPlayers(group);
-    const ranked = Object.entries(scores).sort((a, b) => {
-        if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
-        return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
-    });
+    const ranked = rankPlayers(scores);
     const totalInCat = state.activeGroups[cat].reduce((s, g) => s + g.members.length, 0);
     const nQ = getQualifyCount(group.members.length, totalInCat);
 
@@ -2158,7 +2306,11 @@ function getGroupQualifiers(cat, group) {
     return ranked.slice(0, nQ).filter(([idx]) => !voluntaryPlayers.has(parseInt(idx))).map(([idx]) => group.members[idx]);
 }
 
-function promoteWinners() {
+async function promoteWinners() {
+    // Warn if existing bracket data will be overwritten
+    if (state.bracketMatches && Object.keys(state.bracketMatches).length > 0) {
+        if (!await customConfirm('重新結算將清除所有決賽對戰資料，確定要繼續嗎？')) return;
+    }
     pushUndo();
     // Check for unresolved ties
     if (!state.manualQualify) state.manualQualify = {};
@@ -2166,10 +2318,7 @@ function promoteWinners() {
         for (const g of state.activeGroups[cat]) {
             const { scores, hasScore } = getScores(cat, g);
             if (!hasScore) continue;
-            const ranked = Object.entries(scores).sort((a, b) => {
-                if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
-                return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
-            });
+            const ranked = rankPlayers(scores);
             const totalInCat = state.activeGroups[cat].reduce((s, gr) => s + gr.members.length, 0);
             const nQ = getQualifyCount(g.members.length, totalInCat);
             const { hasTie, tiedIndices } = detectTiedGroup(ranked, nQ);
@@ -2226,12 +2375,7 @@ function promoteWinners() {
         const { scores, hasScore } = getScores(cat, g);
         if (!hasScore) continue;
         const { voluntary: voluntaryPlayers } = collectForfeitPlayers(g);
-        const ranked = Object.entries(scores)
-            .filter(([idx]) => !voluntaryPlayers.has(parseInt(idx)))
-            .sort((a, b) => {
-                if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
-                return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
-            });
+        const ranked = rankPlayers(scores).filter(([idx]) => !voluntaryPlayers.has(parseInt(idx)));
         if (ranked.length < 2) continue;
         const champion = g.members[parseInt(ranked[0][0])];
         const runnerUp = g.members[parseInt(ranked[1][0])];
@@ -2429,7 +2573,7 @@ function renderFinalsOverview() {
         html += '<td>' + qualifiers.length + ' 人</td>';
         html += '<td>' + status + '</td>';
         html += '<td>' + champion + '</td><td>' + runnerUp + '</td><td>' + bronze + '</td>';
-        html += '<td><button class="btn btn-light" style="padding:4px 12px;font-size:12px;" onclick="switchFinalsCategory(\'' + escapeXml(cat).replace(/'/g, "\\'") + '\')">管理</button></td></tr>';
+        html += '<td><button class="btn btn-light" style="padding:4px 12px;font-size:12px;" onclick="switchFinalsCategory(\'' + escapeJsInAttr(cat) + '\')">管理</button></td></tr>';
     });
     html += '</table></div>';
     area.innerHTML = html;
@@ -2729,6 +2873,7 @@ function confirmBracketWinner(matchId) {
     if (isNaN(s1) || isNaN(s2)) { showToast('請先輸入雙方分數', 'error'); return; }
     if (s1 < 0 || s2 < 0) { showToast('分數不可為負數', 'error'); return; }
     if (s1 === s2) { showToast('分數相同，無法判定勝者', 'error'); return; }
+    checkBadmintonScore(s1, s2);
 
     const winner = s1 > s2 ? m.p1 : m.p2;
     const loser = s1 > s2 ? m.p2 : m.p1;
@@ -2849,7 +2994,8 @@ function printResultAnnouncement() {
     const matches = matchSource.filter(m => m.winner && m.p1 !== '—BYE—' && m.p2 !== '—BYE—' && m.p1 !== '—TBD—' && m.p2 !== '—TBD—');
     const rounds = isPrelimOnly ? 1 : getBracketRoundCount(currentMatches);
 
-    const win = window.open('', '_blank');
+    const win = openPrintWindow();
+    if (!win) return;
     const doc = win.document;
     doc.open();
     doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
@@ -3056,10 +3202,7 @@ function _writeReportPrelimSection(doc) {
             const nQ = getQualifyCount(group.members.length, totalInCat);
             const { voluntary: voluntaryPlayers, injury: injuryPlayers } = collectForfeitPlayers(group);
 
-            const ranked = Object.entries(scores).sort((a, b) => {
-                if (b[1].wins !== a[1].wins) return b[1].wins - a[1].wins;
-                return (b[1].pf - b[1].pa) - (a[1].pf - a[1].pa);
-            });
+            const ranked = rankPlayers(scores);
 
             doc.write('<div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#555;">' + escapeXml(group.name) + ' 組（' + group.members.length + ' 人）</div>');
             doc.write('<table><tr><th>排名</th><th>選手</th><th>勝</th><th>負</th><th>得分</th><th>失分</th><th>淨分</th><th>備註</th></tr>');
@@ -3177,7 +3320,8 @@ function generateFullReport() {
     const dateStr = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
     const hasAnyResult = getFinalsCategories().some(cat => getBracketResultsForCategory(cat));
 
-    const win = window.open('', '_blank');
+    const win = openPrintWindow();
+    if (!win) return;
     const doc = win.document;
     doc.open();
     doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
@@ -3300,7 +3444,8 @@ function printFinalsBracketPDF() {
     fullSvg += '<text x="' + (svgW / 2) + '" y="28" text-anchor="middle" font-size="18" font-weight="bold" font-family="Microsoft JhengHei, sans-serif" fill="#000">' + escapeXml(title) + '</text>';
     fullSvg += '<g transform="translate(0,' + headerH + ')">' + br.svg + '</g>';
 
-    const win = window.open('', '_blank');
+    const win = openPrintWindow();
+    if (!win) return;
     const doc = win.document;
     doc.open();
     doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeXml(title) + '</title>');
@@ -3412,6 +3557,7 @@ async function generateFinalsSheets() {
     const catPrefix = state.activeCategory ? state.activeCategory + ' ' : '';
     const title = await customPrompt('請輸入賽事名稱', catPrefix + (document.getElementById('finalTitle').value.trim() || getEventTitle()));
     if (!title) return;
+    const isDoubles = state.activeCategory && state.setupPool[state.activeCategory] && state.setupPool[state.activeCategory].type === '雙打';
 
     const realPlayers2 = qualifiers.map(q => q.name);
     const size = Math.pow(2, Math.ceil(Math.log2(realPlayers2.length)));
@@ -3435,16 +3581,13 @@ async function generateFinalsSheets() {
     for (let r = 0; r < rounds; r++) {
         const rName = getRoundName(r, rounds);
         currentRound.forEach(([p1, p2]) => {
-            if (p1 === '—BYE—' || p2 === '—BYE—') {
-                // Auto advance BYE, skip matchNo (BYE is not a real match)
-                return;
-            }
+            if (p1 === '—BYE—' || p2 === '—BYE—') { return; }
             matches.push({
                 matchNo: matchNo++,
                 category: '決賽 ' + rName,
-                p1: [p1],
-                p2: [p2],
-                isDoubles: false
+                p1: isDoubles ? splitDoubles(p1) : [p1],
+                p2: isDoubles ? splitDoubles(p2) : [p2],
+                isDoubles
             });
         });
         const next = [];
@@ -3455,16 +3598,27 @@ async function generateFinalsSheets() {
         }
         currentRound = next;
     }
+    // Add 3rd-place match if applicable
+    if (realPlayers2.length >= 4 && rounds >= 2) {
+        matches.push({
+            matchNo: matchNo++,
+            category: '決賽 季軍賽',
+            p1: ['待定'],
+            p2: ['待定'],
+            isDoubles
+        });
+    }
     openMatchSheets(matches, title);
 }
 
 function openMatchSheets(matches, title) {
-    const win = window.open('', '_blank');
+    const win = openPrintWindow();
+    if (!win) return;
     const doc = win.document;
     doc.open();
     doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>出賽單</title>');
     doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></scr' + 'ipt>');
-    doc.write('<scr' + 'ipt src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></scr' + 'ipt>');
+    doc.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></scr' + 'ipt>');
     doc.write('<style>');
     doc.write('* { box-sizing: border-box; margin: 0; padding: 0; }');
     doc.write('body { font-family: "Microsoft JhengHei", "PMingLiU", sans-serif; }');
@@ -3514,7 +3668,7 @@ function openMatchSheets(matches, title) {
             doc.write('<div class="left">');
             doc.write('<div>日期 <span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span></div>');
             doc.write('<div>時間 <span class="blank-sm">&nbsp;</span>:<span class="blank-sm">&nbsp;</span></div>');
-            doc.write('<div>組別 <b>' + escapeXml(m.category) + ' ' + m.matchNo + '</b></div>');
+            doc.write('<div>場次 <b>' + m.matchNo + '</b></div>');
             doc.write('<div>場地 <span class="blank" style="min-width:140px;">&nbsp;</span></div>');
             doc.write('</div>');
             doc.write('<div class="right">');
@@ -3771,6 +3925,67 @@ async function importJSON(event) {
 }
 
 // ============================================================
+// CSV export (比賽明細)
+// ============================================================
+function exportCSV() {
+    if (Object.keys(state.activeGroups).length === 0) { showToast('尚無賽事資料', 'error'); return; }
+    const BOM = '\uFEFF';
+    const rows = [['類別', '組別', '場次', '選手1', '分數1', '分數2', '選手2', '勝者', '備註']];
+
+    for (const cat in state.activeGroups) {
+        state.activeGroups[cat].forEach(g => {
+            let matchNo = 0;
+            g.matches.forEach(m => {
+                matchNo++;
+                const s1El = document.getElementById('s1_' + m.matchId);
+                const s2El = document.getElementById('s2_' + m.matchId);
+                const v1 = s1El ? s1El.value : '';
+                const v2 = s2El ? s2El.value : '';
+                const p1 = g.members[m.p1] || '';
+                const p2 = g.members[m.p2] || '';
+                let winner = '';
+                if (v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2)) {
+                    winner = parseInt(v1) > parseInt(v2) ? p1 : (parseInt(v2) > parseInt(v1) ? p2 : '平手');
+                }
+                // Check forfeit
+                const ff1 = document.getElementById('ff1_' + m.matchId);
+                const ff2 = document.getElementById('ff2_' + m.matchId);
+                let note = '';
+                if (ff1 && ff1.getAttribute('data-ff')) note += p1 + (ff1.getAttribute('data-ff') === 'injury' ? '(傷)' : '(棄)');
+                if (ff2 && ff2.getAttribute('data-ff')) note += (note ? ' ' : '') + p2 + (ff2.getAttribute('data-ff') === 'injury' ? '(傷)' : '(棄)');
+                rows.push([cat, g.name + '組', matchNo, p1, v1, v2, p2, winner, note]);
+            });
+        });
+    }
+
+    // Add finals matches
+    const finalsCats = typeof getFinalsCategories === 'function' ? getFinalsCategories() : [];
+    finalsCats.forEach(cat => {
+        const matches = state.bracketMatches[cat] || [];
+        const rounds = getBracketRoundCount(matches);
+        let matchNo = 0;
+        matches.forEach(m => {
+            if (!m.p1 || !m.p2 || m.p1 === '—BYE—' || m.p2 === '—BYE—' || m.p1 === '—TBD—' || m.p2 === '—TBD—') return;
+            matchNo++;
+            const roundName = m.isThirdPlace ? '季軍賽' : getRoundName(m.round, rounds);
+            rows.push([cat, '決賽' + roundName, matchNo, m.p1, m.s1 || '', m.s2 || '', m.p2, m.winner || '', '']);
+        });
+    });
+
+    const csvContent = BOM + rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    const ts = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+    a.href = url;
+    a.download = (state.eventTitle || '羽球比賽') + '_成績明細_' + ts + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV 已下載', 'success');
+}
+
+// ============================================================
 // Excel export (成績報表)
 // ============================================================
 async function generateExcel() {
@@ -3954,7 +4169,8 @@ function openChartView() {
     }
 
     // Open print window
-    const win = window.open('', '_blank');
+    const win = openPrintWindow();
+    if (!win) return;
     const doc = win.document;
     doc.open();
     doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeXml(getEventTitle()) + ' 對戰圖</title>');
@@ -4076,6 +4292,16 @@ function openChartView() {
 
 function escapeXml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function escapeJsInAttr(s) {
+    return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/</g, '\\x3c').replace(/>/g, '\\x3e');
+}
+
+function openPrintWindow() {
+    const win = window.open('', '_blank');
+    if (!win) { showToast('無法開啟列印視窗，請允許彈出視窗', 'error'); return null; }
+    return win;
 }
 
 // Match number label: *N format

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'badminton-v1.33';
+const CACHE_NAME = 'badminton-v1.35';
 const ASSETS = [
   './',
   './index.html',
