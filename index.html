@@ -480,6 +480,9 @@
                 </button>
             </div>
         </div>
+        <div class="ctrl-group" style="align-items:center;">
+            <label style="font-size:13px;white-space:nowrap;">比賽日期 <input type="date" id="matchDateInput" style="padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;font-size:13px;background:var(--score-input-bg);color:var(--text);" onchange="state.matchDate=this.value;saveState();"></label>
+        </div>
         <div class="ctrl-group">
             <button class="btn btn-warning" onclick="generateExcel()">下載成績</button>
             <button class="btn btn-light" onclick="exportCSV()">CSV</button>
@@ -1289,6 +1292,8 @@ function restoreSnapshot(snap) {
     state.matchDate = saved.matchDate || '';
     const h1 = document.getElementById('eventTitle');
     if (h1) h1.textContent = state.eventTitle || '羽球賽務系統';
+    const mdInput = document.getElementById('matchDateInput');
+    if (mdInput) mdInput.value = state.matchDate;
 
     refreshPoolList();
     if (Object.keys(state.activeGroups).length > 0) {
@@ -3533,8 +3538,6 @@ async function generatePrelimSheets() {
     if (Object.keys(state.activeGroups).length === 0) { showToast('尚無比賽資料', 'error'); return; }
     const title = await customPrompt('請輸入賽事名稱', getEventTitle());
     if (!title) return;
-    const matchDate = await customPrompt('請輸入比賽日期（如 2025/11/02，留空則不填入）', state.matchDate || '');
-    if (matchDate !== null) { state.matchDate = matchDate; saveState(); }
 
     const matches = [];
     for (const cat in state.activeGroups) {
@@ -3556,7 +3559,7 @@ async function generatePrelimSheets() {
             });
         });
     }
-    openMatchSheets(matches, title, matchDate);
+    openMatchSheets(matches, title, state.matchDate);
 }
 
 async function generateFinalsSheets() {
@@ -3565,8 +3568,6 @@ async function generateFinalsSheets() {
     const catPrefix = state.activeCategory ? state.activeCategory + ' ' : '';
     const title = await customPrompt('請輸入賽事名稱', catPrefix + (document.getElementById('finalTitle').value.trim() || getEventTitle()));
     if (!title) return;
-    const matchDate = await customPrompt('請輸入比賽日期（如 2025/11/02，留空則不填入）', state.matchDate || '');
-    if (matchDate !== null) { state.matchDate = matchDate; saveState(); }
     const isDoubles = state.activeCategory && state.setupPool[state.activeCategory] && state.setupPool[state.activeCategory].type === '雙打';
 
     const realPlayers2 = qualifiers.map(q => q.name);
@@ -3621,7 +3622,7 @@ async function generateFinalsSheets() {
             isDoubles
         });
     }
-    openMatchSheets(matches, title, matchDate);
+    openMatchSheets(matches, title, state.matchDate);
 }
 
 function openMatchSheets(matches, title, matchDate) {
@@ -3681,7 +3682,7 @@ function openMatchSheets(matches, title, matchDate) {
             doc.write('<div class="sheet-info">');
             doc.write('<div class="left">');
             if (matchDate) {
-                doc.write('<div style="white-space:nowrap;">日期 <b>' + escapeXml(matchDate) + '</b> &nbsp;時間 <span class="blank-sm" style="min-width:30px;">&nbsp;</span>:<span class="blank-sm" style="min-width:30px;">&nbsp;</span></div>');
+                doc.write('<div style="white-space:nowrap;">日期 <b>' + escapeXml(matchDate.replace(/-/g, '/')) + '</b> &nbsp;時間 <span class="blank-sm" style="min-width:30px;">&nbsp;</span>:<span class="blank-sm" style="min-width:30px;">&nbsp;</span></div>');
             } else {
                 doc.write('<div style="white-space:nowrap;">日期 <span class="blank" style="min-width:60px;">&nbsp;</span>/<span class="blank" style="min-width:30px;">&nbsp;</span>/<span class="blank" style="min-width:30px;">&nbsp;</span> &nbsp;時間 <span class="blank-sm" style="min-width:30px;">&nbsp;</span>:<span class="blank-sm" style="min-width:30px;">&nbsp;</span></div>');
             }
