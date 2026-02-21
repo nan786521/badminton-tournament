@@ -3666,9 +3666,8 @@ function openMatchSheets(matches, title) {
             doc.write('<div class="sheet-subtitle">出賽單</div>');
             doc.write('<div class="sheet-info">');
             doc.write('<div class="left">');
-            doc.write('<div>日期 <span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span></div>');
-            doc.write('<div>時間 <span class="blank-sm">&nbsp;</span>:<span class="blank-sm">&nbsp;</span></div>');
-            doc.write('<div><b>' + escapeXml(m.category) + '</b></div>');
+            doc.write('<div>日期 <span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span> 時間 <span class="blank-sm">&nbsp;</span>:<span class="blank-sm">&nbsp;</span></div>');
+            doc.write('<div>組別 ' + escapeXml(m.category) + '</div>');
             doc.write('<div>場地 <span class="blank" style="min-width:140px;">&nbsp;</span></div>');
             doc.write('</div>');
             doc.write('<div class="right">');
@@ -3682,19 +3681,18 @@ function openMatchSheets(matches, title) {
             doc.write('<div class="match-area">');
             // Left player box
             doc.write('<div class="player-box">');
+            doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name" style="font-size:12px;font-weight:normal;">學校名稱</div></div>');
             m.p1.forEach(name => {
                 doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(name) + '</div></div>');
             });
-            if (!m.isDoubles && m.p1.length === 1) {
-                // Singles: just 1 row, keep box consistent
-            }
             doc.write('</div>');
 
             // Score
-            doc.write('<div class="score-area"><div class="score-label">比分</div><div class="score-boxes"><div class="score-box"></div><span class="score-colon">:</span><div class="score-box"></div></div></div>');
+            doc.write('<div class="score-area"><div class="score-label">Score</div><div class="score-boxes"><div class="score-box"></div><span class="score-colon">:</span><div class="score-box"></div></div></div>');
 
             // Right player box
             doc.write('<div class="player-box">');
+            doc.write('<div class="slot-row"><div class="slot-name" style="font-size:12px;font-weight:normal;">學校名稱</div><div class="slot-left"></div></div>');
             m.p2.forEach(name => {
                 doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(name) + '</div><div class="slot-left"></div></div>');
             });
