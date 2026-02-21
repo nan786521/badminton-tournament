@@ -3747,10 +3747,6 @@ function openMatchSheets(matches, title, matchDate) {
                 p2Names = [p2Info.name];
             }
 
-            // Ensure at least 2 player rows for consistent 3-row table
-            while (p1Names.length < 2) p1Names.push('');
-            while (p2Names.length < 2) p2Names.push('');
-
             // Left player box: top-left corner no top/left border, check-cell spans player rows
             var p1Count = p1Names.length;
             doc.write('<table class="player-box">');
