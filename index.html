@@ -3646,6 +3646,7 @@ function openMatchSheets(matches, title) {
     doc.write('.slot-row { display: flex; }');
     doc.write('.slot-row + .slot-row { border-top: 1px solid #333; }');
     doc.write('.slot-row .slot-left { padding: 6px 4px; min-height: 34px; min-width: 22px; border-right: 1px solid #333; }');
+    doc.write('.slot-row .slot-right { padding: 6px 4px; min-height: 34px; min-width: 22px; border-left: 1px solid #333; }');
     doc.write('.slot-row .slot-name { padding: 6px 16px; font-size: 15px; font-weight: bold; text-align: center; min-height: 34px; flex: 1; }');
     doc.write('.score-area { text-align: center; }');
     doc.write('.score-label { font-size: 13px; margin-bottom: 4px; }');
@@ -3721,9 +3722,9 @@ function openMatchSheets(matches, title) {
 
             // Right player box
             doc.write('<div class="player-box">');
-            doc.write('<div class="slot-row"><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p2School) + '</div><div class="slot-left"></div></div>');
+            doc.write('<div class="slot-row"><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p2School) + '</div><div class="slot-right"></div></div>');
             p2Names.forEach(function(n) {
-                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(n) + '</div><div class="slot-left"></div></div>');
+                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(n) + '</div><div class="slot-right"></div></div>');
             });
             doc.write('</div>');
             doc.write('</div>');
