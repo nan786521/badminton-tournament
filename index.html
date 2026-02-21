@@ -3677,7 +3677,7 @@ function openMatchSheets(matches, title, matchDate) {
     doc.write('.sheet-info .blank { display: inline-block; border-bottom: 1px solid #333; min-width: 80px; }');
     doc.write('.blank-sm { display: inline-block; border-bottom: 1px solid #333; min-width: 50px; }');
     doc.write('.match-area { display: flex; align-items: center; justify-content: center; gap: 20px; margin: 8px 0; }');
-    doc.write('.player-box { border-collapse: collapse; border: 2px solid #333; min-width: 165px; }');
+    doc.write('.player-box { border-collapse: collapse; border: 1px solid #333; min-width: 165px; }');
     doc.write('.player-box td { border: 1px solid #333; padding: 6px; }');
     doc.write('.player-box .school-cell { text-align: center; font-size: 12px; min-height: 30px; }');
     doc.write('.player-box .name-cell { text-align: center; font-size: 15px; font-weight: bold; padding: 6px 16px; min-height: 34px; }');
@@ -3750,7 +3750,7 @@ function openMatchSheets(matches, title, matchDate) {
             // Left player box: top-left corner no top/left border, check-cell spans player rows
             var p1Count = p1Names.length;
             doc.write('<table class="player-box">');
-            doc.write('<tr><td style="border-top:2px solid #fff;border-left:2px solid #fff;"></td><td class="school-cell">' + escapeXml(p1School) + '</td></tr>');
+            doc.write('<tr><td style="border-top:1px solid #fff;border-left:1px solid #fff;"></td><td class="school-cell">' + escapeXml(p1School) + '</td></tr>');
             p1Names.forEach(function(n, idx) {
                 doc.write('<tr>');
                 if (idx === 0) doc.write('<td class="check-cell" rowspan="' + p1Count + '"></td>');
@@ -3764,7 +3764,7 @@ function openMatchSheets(matches, title, matchDate) {
             // Right player box: mirrored, top-right corner no top/right border
             var p2Count = p2Names.length;
             doc.write('<table class="player-box">');
-            doc.write('<tr><td class="school-cell">' + escapeXml(p2School) + '</td><td style="border-top:2px solid #fff;border-right:2px solid #fff;"></td></tr>');
+            doc.write('<tr><td class="school-cell">' + escapeXml(p2School) + '</td><td style="border-top:1px solid #fff;border-right:1px solid #fff;"></td></tr>');
             p2Names.forEach(function(n, idx) {
                 doc.write('<tr>');
                 doc.write('<td class="name-cell">' + escapeXml(n) + '</td>');
