@@ -3747,29 +3747,24 @@ function openMatchSheets(matches, title, matchDate) {
                 p2Names = [p2Info.name];
             }
 
-            // Left player box: check-cell on LEFT, merged with rowspan
-            var p1Count = p1Names.length;
+            // Left player box: check-cell on LEFT spans all rows (school + players)
+            var p1Total = 1 + p1Names.length;
             doc.write('<table class="player-box">');
-            doc.write('<tr><td colspan="2" class="school-cell">' + escapeXml(p1School) + '</td></tr>');
-            p1Names.forEach(function(n, idx) {
-                doc.write('<tr>');
-                if (idx === 0) doc.write('<td class="check-cell" rowspan="' + p1Count + '"></td>');
-                doc.write('<td class="name-cell">' + escapeXml(n) + '</td></tr>');
+            doc.write('<tr><td class="check-cell" rowspan="' + p1Total + '"></td><td class="school-cell">' + escapeXml(p1School) + '</td></tr>');
+            p1Names.forEach(function(n) {
+                doc.write('<tr><td class="name-cell">' + escapeXml(n) + '</td></tr>');
             });
             doc.write('</table>');
 
             // Score
             doc.write('<div class="score-area"><div class="score-label">Score</div><div class="score-boxes"><div class="score-box"></div><span class="score-colon">:</span><div class="score-box"></div></div></div>');
 
-            // Right player box: check-cell on RIGHT, merged with rowspan (mirrored)
-            var p2Count = p2Names.length;
+            // Right player box: check-cell on RIGHT spans all rows (mirrored)
+            var p2Total = 1 + p2Names.length;
             doc.write('<table class="player-box">');
-            doc.write('<tr><td colspan="2" class="school-cell">' + escapeXml(p2School) + '</td></tr>');
-            p2Names.forEach(function(n, idx) {
-                doc.write('<tr>');
-                doc.write('<td class="name-cell">' + escapeXml(n) + '</td>');
-                if (idx === 0) doc.write('<td class="check-cell" rowspan="' + p2Count + '"></td>');
-                doc.write('</tr>');
+            doc.write('<tr><td class="school-cell">' + escapeXml(p2School) + '</td><td class="check-cell" rowspan="' + p2Total + '"></td></tr>');
+            p2Names.forEach(function(n) {
+                doc.write('<tr><td class="name-cell">' + escapeXml(n) + '</td></tr>');
             });
             doc.write('</table>');
             doc.write('</div>');
