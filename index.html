@@ -3677,12 +3677,11 @@ function openMatchSheets(matches, title, matchDate) {
     doc.write('.sheet-info .blank { display: inline-block; border-bottom: 1px solid #333; min-width: 80px; }');
     doc.write('.blank-sm { display: inline-block; border-bottom: 1px solid #333; min-width: 50px; }');
     doc.write('.match-area { display: flex; align-items: center; justify-content: center; gap: 20px; margin: 8px 0; }');
-    doc.write('.player-box { border: 2px solid #333; min-width: 165px; }');
-    doc.write('.slot-row { display: flex; }');
-    doc.write('.slot-row + .slot-row { border-top: 1px solid #333; }');
-    doc.write('.slot-row .slot-left { padding: 6px 4px; min-height: 34px; min-width: 22px; border-right: 1px solid #333; }');
-    doc.write('.slot-row .slot-right { padding: 6px 4px; min-height: 34px; min-width: 22px; border-left: 1px solid #333; }');
-    doc.write('.slot-row .slot-name { padding: 6px 16px; font-size: 15px; font-weight: bold; text-align: center; min-height: 34px; flex: 1; }');
+    doc.write('.player-box { border-collapse: collapse; border: 2px solid #333; min-width: 165px; }');
+    doc.write('.player-box td { border: 1px solid #333; padding: 6px; }');
+    doc.write('.player-box .school-cell { text-align: center; font-size: 12px; min-height: 30px; }');
+    doc.write('.player-box .name-cell { text-align: center; font-size: 15px; font-weight: bold; padding: 6px 16px; min-height: 34px; }');
+    doc.write('.player-box .check-cell { width: 22px; min-width: 22px; padding: 4px; }');
     doc.write('.score-area { text-align: center; }');
     doc.write('.score-label { font-size: 13px; margin-bottom: 4px; }');
     doc.write('.score-boxes { display: flex; align-items: center; gap: 6px; }');
@@ -3748,24 +3747,31 @@ function openMatchSheets(matches, title, matchDate) {
                 p2Names = [p2Info.name];
             }
 
-            // Left player box
-            doc.write('<div class="player-box">');
-            doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p1School) + '</div></div>');
-            p1Names.forEach(function(n) {
-                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(n) + '</div></div>');
+            // Left player box: check-cell on LEFT, merged with rowspan
+            var p1Count = p1Names.length;
+            doc.write('<table class="player-box">');
+            doc.write('<tr><td colspan="2" class="school-cell">' + escapeXml(p1School) + '</td></tr>');
+            p1Names.forEach(function(n, idx) {
+                doc.write('<tr>');
+                if (idx === 0) doc.write('<td class="check-cell" rowspan="' + p1Count + '"></td>');
+                doc.write('<td class="name-cell">' + escapeXml(n) + '</td></tr>');
             });
-            doc.write('</div>');
+            doc.write('</table>');
 
             // Score
             doc.write('<div class="score-area"><div class="score-label">Score</div><div class="score-boxes"><div class="score-box"></div><span class="score-colon">:</span><div class="score-box"></div></div></div>');
 
-            // Right player box
-            doc.write('<div class="player-box">');
-            doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p2School) + '</div></div>');
-            p2Names.forEach(function(n) {
-                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(n) + '</div></div>');
+            // Right player box: check-cell on RIGHT, merged with rowspan (mirrored)
+            var p2Count = p2Names.length;
+            doc.write('<table class="player-box">');
+            doc.write('<tr><td colspan="2" class="school-cell">' + escapeXml(p2School) + '</td></tr>');
+            p2Names.forEach(function(n, idx) {
+                doc.write('<tr>');
+                doc.write('<td class="name-cell">' + escapeXml(n) + '</td>');
+                if (idx === 0) doc.write('<td class="check-cell" rowspan="' + p2Count + '"></td>');
+                doc.write('</tr>');
             });
-            doc.write('</div>');
+            doc.write('</table>');
             doc.write('</div>');
 
             // Footer
