@@ -3538,11 +3538,14 @@ async function generatePrelimSheets() {
             group.matches.forEach(m => {
                 const p1Name = group.members[m.p1];
                 const p2Name = group.members[m.p2];
+                const p1School = isDoubles ? (p1Name.trim().split(/\s+/)[0] || '') : '';
+                const p2School = isDoubles ? (p2Name.trim().split(/\s+/)[0] || '') : '';
                 matches.push({
                     matchNo: m.matchNo,
                     category: cat,
                     p1: isDoubles ? splitDoubles(p1Name) : [p1Name],
                     p2: isDoubles ? splitDoubles(p2Name) : [p2Name],
+                    p1School, p2School,
                     isDoubles
                 });
             });
@@ -3582,11 +3585,14 @@ async function generateFinalsSheets() {
         const rName = getRoundName(r, rounds);
         currentRound.forEach(([p1, p2]) => {
             if (p1 === '—BYE—' || p2 === '—BYE—') { return; }
+            const p1School = isDoubles ? (p1.trim().split(/\s+/)[0] || '') : '';
+            const p2School = isDoubles ? (p2.trim().split(/\s+/)[0] || '') : '';
             matches.push({
                 matchNo: matchNo++,
                 category: '決賽 ' + rName,
                 p1: isDoubles ? splitDoubles(p1) : [p1],
                 p2: isDoubles ? splitDoubles(p2) : [p2],
+                p1School, p2School,
                 isDoubles
             });
         });
@@ -3685,16 +3691,28 @@ function openMatchSheets(matches, title) {
                 if (parts.length >= 2) return { school: parts[0], name: parts.slice(1).join(' ') };
                 return { school: '', name: fullName };
             }
-            var p1Info = m.p1.map(function(n) { return splitSchoolName(n); });
-            var p2Info = m.p2.map(function(n) { return splitSchoolName(n); });
-            var p1School = p1Info[0].school || '';
-            var p2School = p2Info[0].school || '';
+            // For doubles: school comes from match data (before splitDoubles stripped it)
+            // For singles: extract from player name
+            var p1School, p2School, p1Names, p2Names;
+            if (m.isDoubles) {
+                p1School = m.p1School || '';
+                p2School = m.p2School || '';
+                p1Names = m.p1;
+                p2Names = m.p2;
+            } else {
+                var p1Info = splitSchoolName(m.p1[0] || '');
+                var p2Info = splitSchoolName(m.p2[0] || '');
+                p1School = p1Info.school;
+                p2School = p2Info.school;
+                p1Names = [p1Info.name];
+                p2Names = [p2Info.name];
+            }
 
             // Left player box
             doc.write('<div class="player-box">');
             doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p1School) + '</div></div>');
-            p1Info.forEach(function(p) {
-                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(p.name) + '</div></div>');
+            p1Names.forEach(function(n) {
+                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(n) + '</div></div>');
             });
             doc.write('</div>');
 
@@ -3704,8 +3722,8 @@ function openMatchSheets(matches, title) {
             // Right player box
             doc.write('<div class="player-box">');
             doc.write('<div class="slot-row"><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p2School) + '</div><div class="slot-left"></div></div>');
-            p2Info.forEach(function(p) {
-                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(p.name) + '</div><div class="slot-left"></div></div>');
+            p2Names.forEach(function(n) {
+                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(n) + '</div><div class="slot-left"></div></div>');
             });
             doc.write('</div>');
             doc.write('</div>');
