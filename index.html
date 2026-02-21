@@ -3761,9 +3761,9 @@ function openMatchSheets(matches, title, matchDate) {
 
             // Right player box
             doc.write('<div class="player-box">');
-            doc.write('<div class="slot-row"><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p2School) + '</div><div class="slot-right"></div></div>');
+            doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p2School) + '</div></div>');
             p2Names.forEach(function(n) {
-                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(n) + '</div><div class="slot-right"></div></div>');
+                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(n) + '</div></div>');
             });
             doc.write('</div>');
             doc.write('</div>');
