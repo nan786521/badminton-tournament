@@ -3540,7 +3540,7 @@ async function generatePrelimSheets() {
                 const p2Name = group.members[m.p2];
                 matches.push({
                     matchNo: m.matchNo,
-                    category: cat + ' ' + group.name + '組',
+                    category: cat,
                     p1: isDoubles ? splitDoubles(p1Name) : [p1Name],
                     p2: isDoubles ? splitDoubles(p2Name) : [p2Name],
                     isDoubles
@@ -3668,7 +3668,7 @@ function openMatchSheets(matches, title) {
             doc.write('<div class="left">');
             doc.write('<div>日期 <span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span>/<span class="blank">&nbsp;</span></div>');
             doc.write('<div>時間 <span class="blank-sm">&nbsp;</span>:<span class="blank-sm">&nbsp;</span></div>');
-            doc.write('<div>場次 <b>' + m.matchNo + '</b></div>');
+            doc.write('<div><b>' + escapeXml(m.category) + '</b> 第 ' + m.matchNo + ' 場</div>');
             doc.write('<div>場地 <span class="blank" style="min-width:140px;">&nbsp;</span></div>');
             doc.write('</div>');
             doc.write('<div class="right">');
