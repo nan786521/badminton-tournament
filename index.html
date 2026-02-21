@@ -3679,11 +3679,22 @@ function openMatchSheets(matches, title) {
 
             // Match area
             doc.write('<div class="match-area">');
+            // Helper: extract school and player name from "學校 姓名"
+            function splitSchoolName(fullName) {
+                var parts = fullName.trim().split(/\s+/);
+                if (parts.length >= 2) return { school: parts[0], name: parts.slice(1).join(' ') };
+                return { school: '', name: fullName };
+            }
+            var p1Info = m.p1.map(function(n) { return splitSchoolName(n); });
+            var p2Info = m.p2.map(function(n) { return splitSchoolName(n); });
+            var p1School = p1Info[0].school || '';
+            var p2School = p2Info[0].school || '';
+
             // Left player box
             doc.write('<div class="player-box">');
-            doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name" style="font-size:12px;font-weight:normal;">學校名稱</div></div>');
-            m.p1.forEach(name => {
-                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(name) + '</div></div>');
+            doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p1School) + '</div></div>');
+            p1Info.forEach(function(p) {
+                doc.write('<div class="slot-row"><div class="slot-left"></div><div class="slot-name">' + escapeXml(p.name) + '</div></div>');
             });
             doc.write('</div>');
 
@@ -3692,9 +3703,9 @@ function openMatchSheets(matches, title) {
 
             // Right player box
             doc.write('<div class="player-box">');
-            doc.write('<div class="slot-row"><div class="slot-name" style="font-size:12px;font-weight:normal;">學校名稱</div><div class="slot-left"></div></div>');
-            m.p2.forEach(name => {
-                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(name) + '</div><div class="slot-left"></div></div>');
+            doc.write('<div class="slot-row"><div class="slot-name" style="font-size:12px;font-weight:normal;">' + escapeXml(p2School) + '</div><div class="slot-left"></div></div>');
+            p2Info.forEach(function(p) {
+                doc.write('<div class="slot-row"><div class="slot-name">' + escapeXml(p.name) + '</div><div class="slot-left"></div></div>');
             });
             doc.write('</div>');
             doc.write('</div>');
